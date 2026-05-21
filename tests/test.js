@@ -192,9 +192,49 @@ function getGeneratedFrameworkCss() {
   }
 }
 
+function buildConfigWithBaseFontSize(baseFontSize) {
+  const tmpConfig = JSON.parse(JSON.stringify(config));
+  tmpConfig.baseFontSize = baseFontSize;
+  return tmpConfig;
+}
+
+function getGeneratedFrameworkCssWithConfig(customConfig) {
+  const tmpDir = createTempProject();
+  const originalCwd = process.cwd();
+
+  try {
+    fs.writeFileSync(
+      path.join(tmpDir, 'emily.config.json'),
+      JSON.stringify(customConfig, null, 2),
+    );
+    process.chdir(tmpDir);
+    buildFullFramework();
+    return fs.readFileSync(path.join(tmpDir, 'dist', 'emily.css'), 'utf8');
+  } finally {
+    process.chdir(originalCwd);
+    removeTempProject(tmpDir);
+  }
+}
+
 // ─── 1. Colour Generation ─────────────────────────────────────────────────────
 
 section('1. Colour Generation');
+
+test('buildFullFramework emits html font-size for non-default baseFontSize', () => {
+  const css = getGeneratedFrameworkCssWithConfig(buildConfigWithBaseFontSize('18px'));
+  assert.ok(
+    css.includes('html { font-size: 18px; }'),
+    'Expected generated CSS to include html font-size for 18px baseFontSize',
+  );
+});
+
+test('buildFullFramework omits html font-size for default 16px baseFontSize', () => {
+  const css = getGeneratedFrameworkCssWithConfig(buildConfigWithBaseFontSize('16px'));
+  assert.ok(
+    !css.includes('html { font-size: 16px; }'),
+    'Expected generated CSS not to include redundant html font-size for default 16px',
+  );
+});
 
 test('hexToOklch returns valid L, C, H for #0077b6', () => {
   const { l, c, h } = hexToOklch('#0077b6');

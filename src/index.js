@@ -1572,7 +1572,11 @@ function buildFullFramework() {
 
   console.log('✓ Font: ' + fontLabel);
 
-  const baseCss = `
+  const htmlFontSize = (config.baseFontSize && config.baseFontSize !== "16px")
+    ? `\n  html { font-size: ${config.baseFontSize}; }\n`
+    : "";
+
+  const baseCss = `${htmlFontSize}
   /* Box sizing */
   *, *::before, *::after {
     box-sizing: border-box;

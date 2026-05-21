@@ -441,6 +441,7 @@ function createDefaultConfig({
   headingFont,
   bodyFont,
   baseUnit,
+  baseFontSize,
   detectedProject,
 }) {
   return {
@@ -448,7 +449,7 @@ function createDefaultConfig({
     description: name + " design system",
 
     baseUnit: baseUnit + "px",
-    baseFontSize: "16px",
+    baseFontSize: baseFontSize || "16px",
 
     fontFamily: {
       heading: headingFont,
@@ -801,6 +802,17 @@ async function init() {
       ),
     }).run();
 
+    const baseFontSize = await new Select({
+      name: "baseFontSize",
+      message: "Base font size (sets html font-size, scales all rem values)",
+      choices: ["14px", "16px", "18px", "20px"],
+      initial: (function () {
+        const existing = existingConfig && existingConfig.baseFontSize;
+        const idx = ["14px", "16px", "18px", "20px"].indexOf(existing);
+        return idx >= 0 ? idx : 1;
+      })(),
+    }).run();
+
     // =========================================================================
     // SPACING
     // =========================================================================
@@ -853,6 +865,7 @@ async function init() {
       headingFont,
       bodyFont,
       baseUnit,
+      baseFontSize,
       detectedProject,
     });
     const config = mergeWithDefaults(generatedDefaults, existingConfig);
@@ -863,6 +876,7 @@ async function init() {
     }
 
     config.baseUnit = baseUnit + "px";
+    config.baseFontSize = baseFontSize || "16px";
     config.fontFamily = {
       heading: headingFont,
       body: bodyFont,
