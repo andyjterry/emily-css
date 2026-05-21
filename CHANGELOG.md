@@ -4,6 +4,14 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.9 — May 2026
+
+**Fix baseFontSize handling in emily-css init and generated CSS**
+
+### Fixed
+- fix(init): persist baseFontSize and emit html font-size for non-default values
+
+---
 ## v1.2.8 — May 2026
 
 **feat(purge): add purge safelist support and keep semantic dark/light utilities**
