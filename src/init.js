@@ -310,6 +310,7 @@ function addEmilyScriptsToPackageJson() {
     const scripts = {
       "emily:build": "emily-css build",
       "emily:watch": "emily-css watch",
+      "emily:watch:prod": "emily-css watch --prod",
       "emily:doctor": "emily-css doctor",
       "emily:migrate": "emily-css migrate",
       "emily:info": "emily-css info",
@@ -972,6 +973,7 @@ async function init() {
                   ? "\n\nScripts added:\n" +
                     chalk.cyan("  npm run emily:build\n") +
                     chalk.cyan("  npm run emily:watch\n") +
+                    chalk.cyan("  npm run emily:watch:prod\n") +
                     chalk.cyan("  npm run emily:doctor\n") +
                     chalk.cyan("  npm run emily:migrate\n") +
                     chalk.cyan("  npm run emily:info\n") +

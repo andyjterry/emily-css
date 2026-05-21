@@ -27,6 +27,7 @@
     "ship": "node scripts/ship.js",
     "emily:build": "emily-css build",
     "emily:watch": "emily-css watch",
+    "emily:watch:prod": "emily-css watch --prod",
     "emily:doctor": "emily-css doctor",
     "emily:migrate": "emily-css migrate",
     "emily:info": "emily-css info",

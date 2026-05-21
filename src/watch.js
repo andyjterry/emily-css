@@ -13,6 +13,7 @@ const {
   buildProductionCss,
   ensureFullFramework,
 } = require("./index.js");
+const { getFullCssPath } = require("./config.js");
 
 const { extractClassNames } = require("./purge.js");
 
@@ -21,6 +22,7 @@ let pendingRun = false;
 let previousClasses = new Set();
 let hasRunOnce = false;
 let activeIgnoreList = DEFAULT_PURGE_IGNORE;
+let watchMode = "dev";
 
 function readConfig() {
   const configPath = path.join(process.cwd(), "emily.config.json");
@@ -231,15 +233,63 @@ function runProductionUpdate(filePath) {
 }
 
 function getWatchPaths(config) {
-  return [config.purge?.sourceDir || ".", "emily.config.json"];
+  if (watchMode === "prod") {
+    return [config.purge?.sourceDir || ".", "emily.config.json"];
+  }
+
+  return ["emily.config.json"];
 }
 
 function queueUpdate(filePath) {
   if (filePath && shouldIgnore(filePath, activeIgnoreList)) return;
-  runProductionUpdate(filePath);
+  if (watchMode === "prod") {
+    runProductionUpdate(filePath);
+    return;
+  }
+
+  runDevelopmentUpdate();
 }
 
-function runWatch() {
+function printDevelopmentSummary(config) {
+  const fullCssPath = getFullCssPath(config);
+  const relativeOutput = path.relative(process.cwd(), fullCssPath);
+  const fileSizeBytes = fs.existsSync(fullCssPath) ? fs.statSync(fullCssPath).size : 0;
+  const fileSizeKb = (fileSizeBytes / 1024).toFixed(1);
+  const time = new Date().toLocaleTimeString();
+
+  console.log(
+    chalk.green("✓ " + time + " updated") +
+      chalk.gray(" | " + fileSizeKb + " KB | " + relativeOutput),
+  );
+}
+
+function runDevelopmentUpdate() {
+  if (isRunning) {
+    pendingRun = true;
+    return;
+  }
+
+  isRunning = true;
+
+  try {
+    const config = readConfig();
+    runQuietly(() => buildFullFramework());
+    printDevelopmentSummary(config);
+  } catch (error) {
+    console.error("\n❌ EmilyUI watch failed");
+    console.error(error.message);
+  } finally {
+    isRunning = false;
+
+    if (pendingRun) {
+      pendingRun = false;
+      runDevelopmentUpdate();
+    }
+  }
+}
+
+function runWatch(mode = "dev") {
+  watchMode = mode === "prod" ? "prod" : "dev";
   const config = readConfig();
   activeIgnoreList = config.purge?.ignore || DEFAULT_PURGE_IGNORE;
   const watchPaths = getWatchPaths(config);
@@ -247,10 +297,18 @@ function runWatch() {
   console.log("");
   console.log(chalk.cyan("👀 EmilyUI is watching..."));
   console.log(
+    chalk.gray("   Mode:    " + (watchMode === "prod" ? "production (purge + minify)" : "development (full CSS)")),
+  );
+  console.log(
     chalk.gray("   Project: " + (config.purge?.projectType || "Unknown")),
   );
   console.log(
-    chalk.gray("   Output:  " + (config.output?.css || "dist/emily.min.css")),
+    chalk.gray(
+      "   Output:  " +
+        (watchMode === "prod"
+          ? (config.output?.css || "dist/emily.min.css")
+          : (config.output?.fullCss || "dist/emily.css")),
+    ),
   );
   console.log(chalk.gray("   Watching:"));
 
@@ -258,8 +316,12 @@ function runWatch() {
     console.log(chalk.gray("   - " + item));
   });
 
-  runQuietly(() => ensureFullFramework());
-  runProductionUpdate();
+  if (watchMode === "prod") {
+    runQuietly(() => ensureFullFramework());
+    runProductionUpdate();
+  } else {
+    runDevelopmentUpdate();
+  }
 
   const watcher = chokidar.watch(watchPaths, {
     ignored: (filePath) => shouldIgnore(filePath, activeIgnoreList),
@@ -280,4 +342,12 @@ function runWatch() {
   });
 }
 
-runWatch();
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  const mode = args.includes("--prod") ? "prod" : "dev";
+  runWatch(mode);
+}
+
+module.exports = {
+  runWatch,
+};

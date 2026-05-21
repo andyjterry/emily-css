@@ -2,14 +2,14 @@
   "name": "Emily Css",
   "description": "Emily Css design system",
   "baseUnit": "18px",
-  "baseFontSize": "16px",
+  "baseFontSize": "18px",
   "fontFamily": {
     "heading": "atkinson",
     "body": "inter"
   },
   "customFonts": [],
   "output": {
-    "css": "dist/emily.min.css",
+    "css": "dist/emily.css",
     "fullCss": "dist/emily.css"
   },
   "manifest": {

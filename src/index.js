@@ -1831,11 +1831,12 @@ function build(options = {}) {
   const config = getConfig();
   const fullCssPath = getFullCssPath(config);
   const result = buildProductionCss({ profile: options.profile });
+  const fullAndProductionSamePath = path.resolve(fullCssPath) === path.resolve(result.outputPath);
 
   console.log('\u2713 Generated production CSS: ' + path.relative(process.cwd(), result.outputPath));
   console.log('\u2713 File size: ' + (result.outputSize / 1024).toFixed(2) + ' KB');
 
-  if (!options.keepFull && fs.existsSync(fullCssPath)) {
+  if (!options.keepFull && !fullAndProductionSamePath && fs.existsSync(fullCssPath)) {
     try {
       fs.unlinkSync(fullCssPath);
       console.log('Removed ' + path.relative(process.cwd(), fullCssPath) + ' for production build.');

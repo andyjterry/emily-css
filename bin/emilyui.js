@@ -12,7 +12,8 @@ const usageText = `
     emily-css init        Set up a new project
     emily-css build       Generate production CSS to the configured output path
       --profile           Print coarse build timing information
-    emily-css watch       Dev mode: rebuild on changes
+    emily-css watch       Dev mode: rebuild full CSS on config changes
+      --prod              Watch source files and rebuild minified CSS on changes
     emily-css info        Show project config and CSS stats
     emily-css doctor      Scan project files for unknown EmilyCSS classes
     emily-css migrate     Generate a Tailwind-to-EmilyCSS migration report
@@ -33,7 +34,8 @@ if (command === "init") {
     profile: process.argv.includes("--profile"),
   });
 } else if (command === "watch") {
-  require("../src/watch.js");
+  const { runWatch } = require("../src/watch.js");
+  runWatch(process.argv.includes("--prod") ? "prod" : "dev");
 } else if (command === "showcase") {
   require("../src/showcase.js");
 } else if (command === "info") {
@@ -72,7 +74,8 @@ if (command === "init") {
     emily-css init        Set up a new project (interactive wizard)
     emily-css build       Generate production CSS to the configured output path
       --profile           Print coarse build timing information
-    emily-css watch       Dev mode: watch for changes and rebuild
+    emily-css watch       Dev mode: watch config and rebuild full CSS
+      --prod              Production watch: purge + minify on source changes
     emily-css info        Show project config, output paths, and CSS stats
     emily-css doctor      Scan project files for unknown EmilyCSS classes
     emily-css migrate     Generate a Tailwind-to-EmilyCSS migration report
@@ -85,6 +88,7 @@ if (command === "init") {
   npm scripts (added by init):
     npm run emily:build      Same as emily-css build
     npm run emily:watch      Same as emily-css watch
+    npm run emily:watch:prod Same as emily-css watch --prod
     npm run emily:doctor     Same as emily-css doctor
     npm run emily:migrate    Same as emily-css migrate
     npm run emily:info       Same as emily-css info
