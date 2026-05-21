@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { generateManifest } = require('./manifest');
 const { generateIntellisense } = require('./intellisense');
+const { validateConfigOrExit } = require('./validateConfig');
 const {
   getConfigPath,
   getConfig,
@@ -1509,6 +1510,7 @@ function generatePatternComponents() {
 // ============================================================================
 
 function buildFullFramework() {
+  validateConfigOrExit();
   const config = getConfig();
 
   console.log('Building EmilyCSS full framework...');

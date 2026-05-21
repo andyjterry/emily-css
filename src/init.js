@@ -6,6 +6,13 @@ const chalk = require("chalk");
 const ora = require("ora");
 const boxen = require("boxen");
 const { DEFAULT_PURGE_IGNORE, PURGE_EXTENSIONS } = require("./constants.js");
+const {
+  ALLOWED_FONT_FAMILIES,
+  validateHexColour,
+  validateSpacingValue,
+  validateFontFamily,
+  validateConfigShape,
+} = require("./validate.js");
 
 // ============================================================================
 // CONSTANTS
@@ -48,14 +55,6 @@ const COLOUR_PRESETS = {
   ],
 };
 
-const FONT_OPTIONS = [
-  { name: "lexend", message: "Lexend (clear, accessible - recommended)" },
-  { name: "inter", message: "Inter (clean, widely used)" },
-  { name: "dm-sans", message: "DM Sans (modern, geometric)" },
-  { name: "nunito", message: "Nunito (friendly, rounded)" },
-  { name: "atkinson", message: "Atkinson Hyperlegible (maximum legibility)" },
-  { name: "system", message: "System sans-serif (no download required)" },
-];
 const CORE_COLOUR_KEYS = new Set([
   "brand",
   "accent",
@@ -70,10 +69,6 @@ const CORE_COLOUR_KEYS = new Set([
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-function isValidHex(hex) {
-  return /^#[0-9A-F]{6}$/i.test(hex);
-}
 
 function isPlainObject(value) {
   return (
@@ -111,24 +106,61 @@ function colourSwatch(hex) {
 }
 
 function normaliseHex(value) {
-  return typeof value === "string" && isValidHex(value)
-    ? value.toUpperCase()
-    : null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const result = validateHexColour(trimmed);
+  return result.valid ? trimmed.toUpperCase() : null;
+}
+
+function formatValueForMessage(value) {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  return "'" + String(value) + "'";
+}
+
+async function askValidatedInput({
+  promptName,
+  message,
+  initial,
+  validator,
+  normalise,
+}) {
+  let nextInitial = initial;
+
+  while (true) {
+    const raw = await new Input({
+      name: promptName,
+      message,
+      initial: nextInitial,
+    }).run();
+
+    const value = typeof raw === "string" ? raw.trim() : raw;
+    const result = validator(value);
+
+    if (result.valid) {
+      console.log(chalk.green("✓ Valid"));
+      return typeof normalise === "function" ? normalise(value) : value;
+    }
+
+    console.log(
+      chalk.red(
+        "✗ Invalid: " + result.reason + " (got " + formatValueForMessage(raw) + ")",
+      ),
+    );
+    nextInitial = value || initial;
+  }
 }
 
 async function askHex(promptName, message, initial) {
-  const value = await new Input({
-    name: promptName,
+  return askValidatedInput({
+    promptName,
     message,
     initial: initial || "#000000",
-    validate(value) {
-      return isValidHex(value)
-        ? true
-        : "Enter a valid hex colour, e.g. #0077B6";
+    validator: validateHexColour,
+    normalise: function (value) {
+      return String(value).toUpperCase();
     },
-  }).run();
-
-  return value.toUpperCase();
+  });
 }
 
 async function askColourFromPresets(label, presets, defaultHex, currentHex) {
@@ -224,13 +256,6 @@ function readExistingConfig() {
   }
 }
 
-function getFontInitialIndex(fontKey, fallbackIndex) {
-  if (!fontKey || typeof fontKey !== "string") return fallbackIndex;
-  const normalised = fontKey.toLowerCase();
-  const index = FONT_OPTIONS.findIndex((option) => option.name === normalised);
-  return index === -1 ? fallbackIndex : index;
-}
-
 function getExistingAdditionalColours(existingColours) {
   if (!isPlainObject(existingColours)) return {};
 
@@ -249,11 +274,10 @@ function getExistingAdditionalColours(existingColours) {
 
 function getBaseUnitInitial(config) {
   const rawBaseUnit = config && typeof config.baseUnit === "string"
-    ? config.baseUnit
+    ? config.baseUnit.trim()
     : "";
-  const parsed = Number.parseInt(rawBaseUnit, 10);
-  if (Number.isNaN(parsed) || parsed <= 0) return "18";
-  return String(parsed);
+  if (validateSpacingValue(rawBaseUnit).valid) return rawBaseUnit;
+  return "18px";
 }
 
 function hasDependency(packageJson, dependencyName) {
@@ -448,7 +472,7 @@ function createDefaultConfig({
     name,
     description: name + " design system",
 
-    baseUnit: baseUnit + "px",
+    baseUnit,
     baseFontSize: baseFontSize || "16px",
 
     fontFamily: {
@@ -656,14 +680,17 @@ async function init() {
         ? titleCasePackageName(packageJsonData.name)
         : "My Design System";
 
-    const projectName = await new Input({
-      name: "projectName",
+    const projectName = await askValidatedInput({
+      promptName: "projectName",
       message: "Project name",
       initial: pkgName,
-      validate: function (value) {
-        return value.trim() ? true : "Project name is required";
+      validator: function (value) {
+        if (typeof value !== "string" || !value.trim()) {
+          return { valid: false, reason: "project name is required" };
+        }
+        return { valid: true };
       },
-    }).run();
+    });
 
     if (!projectName || !projectName.trim()) {
       console.log(chalk.red("\nProject name is required.\n"));
@@ -778,29 +805,45 @@ async function init() {
 
     console.log(chalk.bold("\n" + chalk.magenta("→") + " Typography"));
 
-    const headingFont = await new Select({
-      name: "headingFont",
-      message: "Heading font",
-      choices: FONT_OPTIONS,
-      initial: getFontInitialIndex(
-        isPlainObject(existingConfig && existingConfig.fontFamily)
-          ? existingConfig.fontFamily.heading
-          : existingConfig && existingConfig.fontFamily,
-        0,
+    console.log(
+      chalk.gray(
+        "  Allowed font families: " + ALLOWED_FONT_FAMILIES.join(", "),
       ),
-    }).run();
+    );
 
-    const bodyFont = await new Select({
-      name: "bodyFont",
-      message: "Body font",
-      choices: FONT_OPTIONS,
-      initial: getFontInitialIndex(
-        isPlainObject(existingConfig && existingConfig.fontFamily)
+    const headingFont = await askValidatedInput({
+      promptName: "headingFont",
+      message: "Heading font family",
+      initial: (function () {
+        const existingHeading = isPlainObject(existingConfig && existingConfig.fontFamily)
+          ? existingConfig.fontFamily.heading
+          : existingConfig && existingConfig.fontFamily;
+        if (typeof existingHeading !== "string") return "lexend";
+        const candidate = existingHeading.trim().toLowerCase();
+        return validateFontFamily(candidate).valid ? candidate : "lexend";
+      })(),
+      validator: validateFontFamily,
+      normalise: function (value) {
+        return String(value).trim().toLowerCase();
+      },
+    });
+
+    const bodyFont = await askValidatedInput({
+      promptName: "bodyFont",
+      message: "Body font family",
+      initial: (function () {
+        const existingBody = isPlainObject(existingConfig && existingConfig.fontFamily)
           ? existingConfig.fontFamily.body
-          : existingConfig && existingConfig.fontFamily,
-        1,
-      ),
-    }).run();
+          : existingConfig && existingConfig.fontFamily;
+        if (typeof existingBody !== "string") return "inter";
+        const candidate = existingBody.trim().toLowerCase();
+        return validateFontFamily(candidate).valid ? candidate : "inter";
+      })(),
+      validator: validateFontFamily,
+      normalise: function (value) {
+        return String(value).trim().toLowerCase();
+      },
+    });
 
     const baseFontSize = await new Select({
       name: "baseFontSize",
@@ -817,22 +860,15 @@ async function init() {
     // SPACING
     // =========================================================================
 
-    const baseUnitRaw = await new Input({
-      name: "baseUnit",
-      message: "Base spacing unit in px (label/documentation only)",
+    const baseUnit = await askValidatedInput({
+      promptName: "baseUnit",
+      message: "Base spacing unit in px (label/documentation only) e.g. 1rem or 10px",
       initial: getBaseUnitInitial(existingConfig),
-      validate: function (value) {
-        const parsed = Number.parseInt(value, 10);
-
-        if (Number.isNaN(parsed) || parsed <= 0) {
-          return "Must be a positive number.";
-        }
-
-        return true;
+      validator: validateSpacingValue,
+      normalise: function (value) {
+        return String(value).trim().toLowerCase();
       },
-    }).run();
-
-    const baseUnit = Number.parseInt(baseUnitRaw, 10);
+    });
 
     // =========================================================================
     // PURGE / OUTPUT
@@ -875,13 +911,22 @@ async function init() {
       config.description = config.name + " design system";
     }
 
-    config.baseUnit = baseUnit + "px";
+    config.baseUnit = baseUnit;
     config.baseFontSize = baseFontSize || "16px";
     config.fontFamily = {
       heading: headingFont,
       body: bodyFont,
     };
     config.colours = colours;
+
+    const finalValidation = validateConfigShape(config);
+    if (!finalValidation.valid) {
+      console.log(chalk.red("\n✗ Config validation failed. emily.config.json was not written.\n"));
+      finalValidation.errors.forEach(function (error) {
+        console.log(chalk.red("  - " + error));
+      });
+      process.exit(1);
+    }
 
     const configPath = path.join(process.cwd(), "emily.config.json");
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
