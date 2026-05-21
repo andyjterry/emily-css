@@ -4,6 +4,15 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.11 — May 2026
+
+**updated**
+
+### Added
+- updated
+- speed up dev watch and support single CSS output workflow
+
+---
 ## v1.2.10 — May 2026
 
 **v1.2.10 — Config validation & CI/CD**
