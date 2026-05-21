@@ -4,6 +4,18 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.10 — May 2026
+
+**v1.2.10 — Config validation & CI/CD**
+
+### Added
+- feat: add config validation, E2E chaos testing, and GitHub Actions CI
+
+### Changed
+- add randomized E2E config fuzzing suite
+- add GitHub Actions test workflow and PR template
+
+---
 ## v1.2.9 — May 2026
 
 **Fix baseFontSize handling in emily-css init and generated CSS**
