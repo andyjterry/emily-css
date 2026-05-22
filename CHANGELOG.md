@@ -6,6 +6,14 @@ All notable changes to `emily-css` are documented here.
 
 ## v1.2.14 — May 2026
 
+**Improves init DX with fresh/reuse config choice, optional @fontsource installation (including figtree), automation flags, single-file emily.css alignment, and removal of remaining --tw-* internal variables.**
+
+### Added
+- feat(init): add existing-config mode, optional font installs, and framework-specific font guidance
+
+---
+## v1.2.14 — May 2026
+
 **Improve init resilience and automation for fonts and existing configs**
 
 ### Added
