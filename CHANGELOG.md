@@ -4,6 +4,14 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.16 — May 2026
+
+**emily-css uninstall` with optional keep/dry-run flags to remove Emily config, generated assets, package scripts, and selected @fontsource references for clean project rollback.`**
+
+### Added
+- feat(cli): add emily-css uninstall command for safe project cleanup
+
+---
 ## v1.2.15 — May 2026
 
 **auto-wire selected @fontsource imports by framework and add font runtime mismatch checks): Init now auto-wires selected fonts for Nuxt/Next/React/Vue/Astro, and doctor warns on missing @fontsource packages or stale/missing runtime imports to keep emily.config.json and app runtime in sync.**
