@@ -2296,12 +2296,50 @@ const {
   patchNuxtConfigCssImports,
   patchJsEntryWithImports,
 } = require('../src/init.js');
+const {
+  parseUninstallOptions,
+  removeEmilyScripts,
+} = require('../src/uninstall.js');
 
 test('parseInitOptions supports --yes, --skip-font-install, and --fresh', () => {
   const opts = parseInitOptions(['--yes', '--skip-font-install', '--fresh']);
   assert.strictEqual(opts.yes, true);
   assert.strictEqual(opts.skipFontInstall, true);
   assert.strictEqual(opts.fresh, true);
+});
+
+test('parseUninstallOptions supports --yes, --dry-run, and keep flags', () => {
+  const opts = parseUninstallOptions([
+    '--yes',
+    '--dry-run',
+    '--keep-config',
+    '--keep-css',
+    '--keep-scripts',
+    '--keep-font-packages',
+  ]);
+  assert.strictEqual(opts.yes, true);
+  assert.strictEqual(opts.dryRun, true);
+  assert.strictEqual(opts.keepConfig, true);
+  assert.strictEqual(opts.keepCss, true);
+  assert.strictEqual(opts.keepScripts, true);
+  assert.strictEqual(opts.keepFontPackages, true);
+});
+
+test('removeEmilyScripts removes emily scripts and emily-css command scripts', () => {
+  const packageJson = {
+    scripts: {
+      dev: 'nuxt dev',
+      'emily:build': 'emily-css build',
+      lint: 'eslint .',
+      custom: 'node tools.js && emily-css doctor',
+    },
+  };
+
+  const removed = removeEmilyScripts(packageJson);
+  assert.ok(removed.includes('emily:build'));
+  assert.ok(removed.includes('custom'));
+  assert.strictEqual(packageJson.scripts.dev, 'nuxt dev');
+  assert.strictEqual(packageJson.scripts.lint, 'eslint .');
 });
 
 test('getSelectedFontPackages returns @fontsource packages for non-system fonts', () => {
@@ -2376,6 +2414,55 @@ test('init source includes existing-config mode choice prompt', () => {
     initJs.includes('Existing emily.config.json detected. How do you want to continue?'),
     'Missing existing config choice prompt in init flow',
   );
+});
+
+test('uninstall removes emily config, generated css, and emily scripts', () => {
+  const tmpDir = createTempProject();
+
+  try {
+    const packageJsonPath = path.join(tmpDir, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    pkg.scripts = {
+      dev: 'nuxt dev',
+      'emily:build': 'emily-css build',
+      'emily:watch': 'emily-css watch',
+    };
+    pkg.dependencies = {
+      '@fontsource/lexend': '^5.0.0',
+    };
+    fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+
+    fs.mkdirSync(path.join(tmpDir, 'public'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'public', 'emily.css'), '/* emily */');
+    fs.writeFileSync(
+      path.join(tmpDir, 'emily.config.json'),
+      JSON.stringify(
+        {
+          fontFamily: { heading: 'mono', body: 'lexend' },
+          output: { css: 'public/emily.css', fullCss: 'public/emily.css' },
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+
+    const result = spawnSync(
+      'node',
+      [path.join(__dirname, '../bin/emilyui.js'), 'uninstall', '--yes'],
+      { cwd: tmpDir, encoding: 'utf8' },
+    );
+    assert.strictEqual(result.status, 0, result.stderr);
+
+    const nextPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    assert.ok(!fs.existsSync(path.join(tmpDir, 'emily.config.json')), 'Expected emily.config.json to be removed');
+    assert.ok(!fs.existsSync(path.join(tmpDir, 'public', 'emily.css')), 'Expected generated CSS to be removed');
+    assert.ok(!nextPackageJson.scripts['emily:build'], 'Expected emily scripts removed');
+    assert.ok(!nextPackageJson.scripts['emily:watch'], 'Expected emily scripts removed');
+    assert.ok(!nextPackageJson.dependencies['@fontsource/lexend'], 'Expected selected @fontsource package reference removed');
+    assert.ok(result.stdout.includes('EmilyCSS cleanup complete'), 'Expected successful cleanup output');
+  } finally {
+    removeTempProject(tmpDir);
+  }
 });
 
 test('purgeCSS uses isolated temp sourceGlobs for used classes', () => {
@@ -3503,6 +3590,16 @@ test('CLI help output includes migrate command', () => {
 
   assert.strictEqual(result.status, 0);
   assert.ok(result.stdout.includes('emily-css migrate'), 'Expected help output to include migrate command');
+});
+
+test('CLI help output includes uninstall command', () => {
+  const result = spawnSync('node', [path.join(__dirname, '../bin/emilyui.js'), 'help'], {
+    cwd: path.join(__dirname, '..'),
+    encoding: 'utf8',
+  });
+
+  assert.strictEqual(result.status, 0);
+  assert.ok(result.stdout.includes('emily-css uninstall'), 'Expected help output to include uninstall command');
 });
 
 test('migrate command runs without crashing', () => {

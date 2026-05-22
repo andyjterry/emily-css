@@ -24,6 +24,9 @@ const usageText = `
       --import-colours    Detect Tailwind colour palettes and suggest importedPalettes config
     emily-css manifest    Generate the utility/token manifest JSON
     emily-css showcase    Browse components in your browser
+    emily-css uninstall   Remove EmilyCSS files/scripts/config traces from this project
+      --yes, -y           Remove without confirmation prompts
+      --dry-run           Show what would be removed without changing files
     emily-css help        Full command reference
 
   Run emily-css help for more detail.
@@ -69,6 +72,13 @@ if (command === "init") {
   ensureDirectoryForFile(manifestPath);
   fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2));
   console.log(`✓ Generated manifest: ${manifestPath}`);
+} else if (command === "uninstall") {
+  const { uninstall, parseUninstallOptions } = require("../src/uninstall.js");
+  uninstall(parseUninstallOptions(process.argv.slice(3))).catch((error) => {
+    const message = error && error.message ? error.message : String(error);
+    console.error(message);
+    process.exitCode = 1;
+  });
 } else if (command === "version" || command === "--version" || command === "-v") {
   console.log(packageJson.version);
 } else if (command === "help") {
@@ -91,6 +101,9 @@ if (command === "init") {
       --import-colours    Detect Tailwind colour palettes and suggest importedPalettes config
     emily-css manifest    Generate the utility/token manifest JSON
     emily-css showcase    Launch the component showcase in your browser
+    emily-css uninstall   Remove EmilyCSS-generated files and scripts from this project
+      --yes, -y           Remove without confirmation prompts
+      --dry-run           Show what would be removed without changing files
     emily-css version     Show installed version
     emily-css help        Show this help text
   
@@ -103,6 +116,7 @@ if (command === "init") {
     npm run emily:info       Same as emily-css info
     npm run emily:manifest   Same as emily-css manifest
     npm run emily:showcase   Same as emily-css showcase
+    npm run emily:uninstall  Same as emily-css uninstall
     npm run emily:version    Same as emily-css version
     npm run emily:help       Same as emily-css help
   

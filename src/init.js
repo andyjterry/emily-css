@@ -694,6 +694,7 @@ function addEmilyScriptsToPackageJson() {
       "emily:version": "emily-css version",
       "emily:help": "emily-css help",
       "emily:showcase": "emily-css showcase",
+      "emily:uninstall": "emily-css uninstall",
     };
 
     for (const [key, value] of Object.entries(scripts)) {
@@ -1541,6 +1542,7 @@ async function init(options = {}) {
                     chalk.cyan("  npm run emily:manifest\n") +
                     chalk.cyan("  npm run emily:version\n") +
                     chalk.cyan("  npm run emily:showcase\n") +
+                    chalk.cyan("  npm run emily:uninstall\n") +
                     chalk.cyan("  npm run emily:help")
                   : ""),
               {
