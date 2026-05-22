@@ -812,6 +812,11 @@ test('object format: sets heading font-family on h1-h6', () => {
   assert.ok(bodyFont.includes('"Lexend"'), 'Headings should use Lexend');
 });
 
+test('object format: supports figtree font preset', () => {
+  const { bodyFont } = generateFontCSS({ fontFamily: { heading: 'figtree', body: 'figtree' } });
+  assert.ok(bodyFont.includes('"Figtree"'), 'Figtree should be available in generated font stack');
+});
+
 test('string format: backwards compat — single font applied to both body and headings', () => {
   const { fontFace, bodyFont } = generateFontCSS({ fontFamily: 'inter' });
   assert.strictEqual(fontFace, '', 'Should produce no @import');

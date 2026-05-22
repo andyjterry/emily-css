@@ -183,6 +183,10 @@ const FONT_PRESETS = {
     name: 'Lexend',
     stack: '"Lexend", system-ui, sans-serif',
   },
+  'figtree': {
+    name: 'Figtree',
+    stack: '"Figtree", system-ui, sans-serif',
+  },
   'georgia': {
     stack: 'Georgia, "Times New Roman", serif',
   },

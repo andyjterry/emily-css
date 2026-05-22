@@ -66,6 +66,17 @@ const CORE_COLOUR_KEYS = new Set([
   "neutral",
 ]);
 
+const FONT_PACKAGE_BY_KEY = {
+  inter: "@fontsource/inter",
+  lexend: "@fontsource/lexend",
+  figtree: "@fontsource/figtree",
+  "dm-sans": "@fontsource/dm-sans",
+  nunito: "@fontsource/nunito",
+  atkinson: "@fontsource/atkinson-hyperlegible",
+};
+
+const FONT_KEYS_WITHOUT_PACKAGE = new Set(["system", "georgia", "mono"]);
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -292,6 +303,84 @@ function hasDependency(packageJson, dependencyName) {
 function titleCasePackageName(name) {
   return name.replace(/-/g, " ").replace(/\b\w/g, function (c) {
     return c.toUpperCase();
+  });
+}
+
+function getSelectedFontKeys(headingFont, bodyFont) {
+  return [...new Set([headingFont, bodyFont])];
+}
+
+function getSelectedFontPackages(fontKeys) {
+  return fontKeys
+    .filter((key) => !FONT_KEYS_WITHOUT_PACKAGE.has(key))
+    .map((key) => FONT_PACKAGE_BY_KEY[key])
+    .filter(Boolean);
+}
+
+function detectPackageManager() {
+  const userAgent = String(process.env.npm_config_user_agent || "").toLowerCase();
+  if (userAgent.startsWith("pnpm/")) return "pnpm";
+  if (userAgent.startsWith("yarn/")) return "yarn";
+  if (userAgent.startsWith("bun/")) return "bun";
+
+  if (hasFile("pnpm-lock.yaml")) return "pnpm";
+  if (hasFile("yarn.lock")) return "yarn";
+  if (hasFile("bun.lockb") || hasFile("bun.lock")) return "bun";
+
+  return "npm";
+}
+
+function getInstallCommand(packageManager, packages) {
+  if (packageManager === "pnpm") {
+    return { command: "pnpm", args: ["add", ...packages] };
+  }
+
+  if (packageManager === "yarn") {
+    return { command: "yarn", args: ["add", ...packages] };
+  }
+
+  if (packageManager === "bun") {
+    return { command: "bun", args: ["add", ...packages] };
+  }
+
+  return { command: "npm", args: ["install", ...packages] };
+}
+
+function formatInstallCommand(packageManager, packages) {
+  const cmd = getInstallCommand(packageManager, packages);
+  return [cmd.command, ...cmd.args].join(" ");
+}
+
+function installPackages(packageManager, packages) {
+  return new Promise((resolve) => {
+    const cmd = getInstallCommand(packageManager, packages);
+    const child = crossSpawn(cmd.command, cmd.args, {
+      cwd: process.cwd(),
+      stdio: "pipe",
+      shell: process.platform === "win32",
+    });
+
+    let stderr = "";
+
+    if (child.stderr) {
+      child.stderr.on("data", function (data) {
+        stderr += data.toString();
+      });
+    }
+
+    child.on("close", function (code) {
+      resolve({
+        success: code === 0,
+        stderr: stderr.trim(),
+      });
+    });
+
+    child.on("error", function (error) {
+      resolve({
+        success: false,
+        stderr: error && error.message ? error.message : "Unknown install error",
+      });
+    });
   });
 }
 
@@ -846,6 +935,50 @@ async function init() {
       },
     });
 
+    const selectedFontKeys = getSelectedFontKeys(headingFont, bodyFont);
+    const selectedFontPackages = getSelectedFontPackages(selectedFontKeys);
+    const packageManager = detectPackageManager();
+    let fontInstallAttempted = false;
+    let fontInstallSucceeded = false;
+    let fontInstallError = "";
+
+    if (selectedFontPackages.length > 0) {
+      console.log(
+        chalk.gray(
+          "\n  Selected fonts can be installed automatically via @fontsource:",
+        ),
+      );
+      selectedFontPackages.forEach(function (fontPkg) {
+        console.log(chalk.gray("  - " + fontPkg));
+      });
+
+      const shouldInstallFonts = await new Confirm({
+        name: "installFontPackages",
+        message: "Install selected font packages now?",
+        initial: true,
+      }).run();
+
+      if (shouldInstallFonts) {
+        fontInstallAttempted = true;
+        const installSpinner = ora("Installing selected font packages...").start();
+        const installResult = await installPackages(packageManager, selectedFontPackages);
+
+        if (installResult.success) {
+          fontInstallSucceeded = true;
+          installSpinner.succeed("Installed font packages.");
+        } else {
+          fontInstallError = installResult.stderr || "Install command failed.";
+          installSpinner.fail("Font package install failed. You can install them manually.");
+        }
+      } else {
+        console.log(
+          chalk.gray(
+            "  Skipped font package install. You can load these fonts manually later.",
+          ),
+        );
+      }
+    }
+
     const baseFontSize = await new Select({
       name: "baseFontSize",
       message: "Base font size (sets html font-size, scales all rem values)",
@@ -953,6 +1086,25 @@ async function init() {
         buildSpinner.succeed("EmilyUI CSS built successfully.");
 
         const scriptsAdded = addEmilyScriptsToPackageJson();
+        const fontInstallCommand = formatInstallCommand(packageManager, selectedFontPackages);
+        const fontInstallSummary = selectedFontPackages.length === 0
+          ? ""
+          : fontInstallAttempted && fontInstallSucceeded
+            ? "\n\nFonts:\n" +
+              chalk.green("  Installed font packages: ") +
+              chalk.cyan(selectedFontPackages.join(", ")) +
+              "\n" +
+              chalk.gray(
+                "  Next: import the installed font CSS in your framework entry (for Nuxt, add them to nuxt.config css).",
+              )
+            : "\n\nFonts:\n" +
+              chalk.yellow("  Selected fonts require manual loading.") +
+              "\n" +
+              chalk.gray("  Install later with: ") +
+              chalk.cyan(fontInstallCommand) +
+              (fontInstallError
+                ? "\n" + chalk.gray("  Install error: " + fontInstallError)
+                : "");
 
         console.log(
           "\n" +
@@ -969,6 +1121,7 @@ async function init() {
                 "\n\nNext: add this stylesheet to your project:" +
                 "\n" +
                 chalk.yellow("  " + detectedProject.linkHint) +
+                fontInstallSummary +
                 (scriptsAdded
                   ? "\n\nScripts added:\n" +
                     chalk.cyan("  npm run emily:build\n") +

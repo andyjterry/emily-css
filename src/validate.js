@@ -4,6 +4,7 @@ const ALLOWED_FONT_FAMILIES = [
   'system',
   'inter',
   'lexend',
+  'figtree',
   'georgia',
   'dm-sans',
   'nunito',

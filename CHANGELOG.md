@@ -4,6 +4,20 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.13 — May 2026
+
+**feat(init): optional @fontsource install flow + figtree font support**
+
+### Added
+- Added `figtree` to the supported font family list and font preset map.
+- Added an `init` prompt to optionally install selected non-system fonts via `@fontsource/*`.
+
+### Changed
+- `init` now detects package manager (`npm`, `pnpm`, `yarn`, `bun`) and uses the matching install command for optional font package setup.
+- Setup summary now includes clear font-loading guidance and manual install commands when font package installation is skipped or fails.
+
+---
+
 ## v1.2.12 — May 2026
 
 **feat(init): default to a single project-specific emily.css output path for faster dev and simpler production builds**
