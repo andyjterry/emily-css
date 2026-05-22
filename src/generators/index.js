@@ -14,6 +14,7 @@ const { accessibilityUtilities } = require('./accessibility');
 const { codeUtilities } = require('./code');
 const { animationUtilities } = require('./animation');
 const { backgroundUtilities } = require('./background');
+const { patternComponents } = require('./patterns');
 
 module.exports = {
   displayUtilities,
@@ -42,4 +43,5 @@ module.exports = {
   divideUtilities,
   backgroundUtilities,
   filterUtilities,
+  patternComponents,
 };

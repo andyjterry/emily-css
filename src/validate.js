@@ -80,6 +80,86 @@ function validateSpacingValue(value) {
   return { valid: true };
 }
 
+function hasCssInjectionRisk(value) {
+  if (typeof value !== 'string') return false;
+  const lower = value.toLowerCase();
+  if (value.includes(';') || lower.includes('url(')) return true;
+
+  let depth = 0;
+  for (const char of value) {
+    if (char === '(') depth++;
+    if (char === ')') depth--;
+    if (depth < 0) return true;
+  }
+
+  return depth !== 0;
+}
+
+function validateDurationValue(value) {
+  if (typeof value !== 'string') {
+    return { valid: false, reason: 'must be a CSS duration string like 150ms or 0.2s' };
+  }
+
+  const trimmed = value.trim();
+  if (hasCssInjectionRisk(trimmed)) {
+    return { valid: false, reason: 'must not contain unsafe CSS syntax' };
+  }
+
+  if (!/^\d+(\.\d+)?(ms|s)$/.test(trimmed)) {
+    return { valid: false, reason: 'must be a CSS duration string like 150ms or 0.2s' };
+  }
+
+  return { valid: true };
+}
+
+function validateCssLengthValue(value) {
+  if (typeof value !== 'string') {
+    return { valid: false, reason: 'must be a CSS length string' };
+  }
+
+  const trimmed = value.trim();
+  if (hasCssInjectionRisk(trimmed)) {
+    return { valid: false, reason: 'must not contain unsafe CSS syntax' };
+  }
+
+  if (!/^\d+(\.\d+)?(px|rem|em|ch|vw|vh|vmin|vmax|%)$/i.test(trimmed)) {
+    return { valid: false, reason: 'must be a CSS length string' };
+  }
+
+  return { valid: true };
+}
+
+function validateHexOrCustomProperty(value) {
+  if (typeof value !== 'string') {
+    return { valid: false, reason: 'must be a hex colour or CSS custom property reference' };
+  }
+
+  const trimmed = value.trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(trimmed)) return { valid: true };
+  if (/^var\(--[a-zA-Z0-9-_]+\)$/.test(trimmed)) return { valid: true };
+
+  return { valid: false, reason: 'must be a valid #RRGGBB hex colour or var(--token) reference' };
+}
+
+function isStringOrNumber(value) {
+  return typeof value === 'string' || typeof value === 'number';
+}
+
+function validateTypographyTokenGroup(group, pathName, errors) {
+  if (isStringOrNumber(group)) return;
+
+  if (!isPlainObject(group)) {
+    errors.push(`${pathName} must be a string, number, or object of string/number values`);
+    return;
+  }
+
+  Object.entries(group).forEach(([key, value]) => {
+    if (!isStringOrNumber(value)) {
+      errors.push(`${pathName}.${key} must be a string or number`);
+    }
+  });
+}
+
 function validateFontFamily(value) {
   if (typeof value !== 'string') {
     return { valid: false, reason: 'must be a string font key' };
@@ -120,6 +200,8 @@ function validateConfigShape(config) {
   if ('colours' in config) {
     if (!isPlainObject(config.colours)) {
       errors.push('colours must be an object of #RRGGBB values');
+    } else if (Object.keys(config.colours).length === 0) {
+      errors.push('colours must not be empty');
     } else {
       Object.entries(config.colours).forEach(([name, value]) => {
         const result = validateHexColour(value);
@@ -212,6 +294,157 @@ function validateConfigShape(config) {
     }
   }
 
+  if ('cornerStyle' in config && !['square', 'subtle', 'rounded'].includes(config.cornerStyle)) {
+    errors.push('cornerStyle must be one of: square, subtle, rounded');
+  }
+
+  if ('formBase' in config && typeof config.formBase !== 'boolean') {
+    errors.push('formBase must be a boolean');
+  }
+
+  if ('transitions' in config) {
+    if (!isPlainObject(config.transitions)) {
+      errors.push('transitions must be an object');
+    } else {
+      Object.entries(config.transitions).forEach(([name, value]) => {
+        if (name === 'timing') {
+          if (typeof value !== 'string' || !value.trim() || hasCssInjectionRisk(value)) {
+            errors.push(`transitions.${name} has invalid value "${value}"`);
+          }
+          return;
+        }
+
+        const result = validateDurationValue(value);
+        if (!result.valid) {
+          errors.push(`transitions.${name} has invalid value "${value}": ${result.reason}`);
+        }
+      });
+    }
+  }
+
+  if ('breakpoints' in config) {
+    if (!isPlainObject(config.breakpoints)) {
+      errors.push('breakpoints must be an object');
+    } else {
+      Object.entries(config.breakpoints).forEach(([name, value]) => {
+        const result = validateCssLengthValue(value);
+        if (!result.valid) {
+          errors.push(`breakpoints.${name} has invalid value "${value}": ${result.reason}`);
+        }
+      });
+    }
+  }
+
+  if ('layout' in config) {
+    if (!isPlainObject(config.layout)) {
+      errors.push('layout must be an object');
+    } else if ('containerMaxWidth' in config.layout) {
+      const result = validateCssLengthValue(config.layout.containerMaxWidth);
+      if (!result.valid) {
+        errors.push(`layout.containerMaxWidth has invalid value "${config.layout.containerMaxWidth}": ${result.reason}`);
+      }
+    }
+  }
+
+  if ('extend' in config) {
+    if (!isPlainObject(config.extend)) {
+      errors.push('extend must be an object');
+    } else if ('utilities' in config.extend) {
+      if (!isPlainObject(config.extend.utilities)) {
+        errors.push('extend.utilities must be an object');
+      } else {
+        Object.entries(config.extend.utilities).forEach(([name, utility]) => {
+          if (!isPlainObject(utility)) {
+            errors.push(`extend.utilities.${name} must be an object with property and value`);
+            return;
+          }
+
+          if (typeof utility.property !== 'string' || !utility.property.trim()) {
+            errors.push(`extend.utilities.${name}.property must be a non-empty string`);
+          } else if (!/^--[a-zA-Z0-9-_]+$|^-?[a-zA-Z][a-zA-Z0-9-]*$/.test(utility.property.trim())) {
+            errors.push(`extend.utilities.${name}.property must be a valid CSS property name`);
+          }
+
+          if (typeof utility.value !== 'string' || !utility.value.trim()) {
+            errors.push(`extend.utilities.${name}.value must be a non-empty string`);
+          } else if (hasCssInjectionRisk(utility.value.trim())) {
+            errors.push(`extend.utilities.${name}.value must not contain unsafe CSS syntax`);
+          }
+        });
+      }
+    }
+  }
+
+  if ('typography' in config) {
+    if (!isPlainObject(config.typography)) {
+      errors.push('typography must be an object');
+    } else {
+      ['fontSize', 'lineHeight', 'letterSpacing'].forEach((key) => {
+        if (key in config.typography) {
+          validateTypographyTokenGroup(config.typography[key], `typography.${key}`, errors);
+        }
+      });
+    }
+  }
+
+  if ('shadows' in config) {
+    if (!isPlainObject(config.shadows)) {
+      errors.push('shadows must be an object');
+    } else {
+      Object.entries(config.shadows).forEach(([name, value]) => {
+        if (typeof value !== 'string' || !value.trim()) {
+          errors.push(`shadows.${name} must be a non-empty string`);
+        }
+      });
+    }
+  }
+
+  if ('zIndex' in config) {
+    if (!isPlainObject(config.zIndex)) {
+      errors.push('zIndex must be an object');
+    } else {
+      Object.entries(config.zIndex).forEach(([name, value]) => {
+        if (value === 'auto') return;
+
+        const numericValue = typeof value === 'number' ? value : Number(value);
+        if (!Number.isInteger(numericValue) || !Number.isFinite(numericValue)) {
+          errors.push(`zIndex.${name} must be a finite integer or auto`);
+        }
+      });
+    }
+  }
+
+  if ('semanticColours' in config) {
+    if (!isPlainObject(config.semanticColours)) {
+      errors.push('semanticColours must be an object');
+    } else {
+      Object.entries(config.semanticColours).forEach(([name, value]) => {
+        const result = validateHexOrCustomProperty(value);
+        if (!result.valid) {
+          errors.push(`semanticColours.${name} ${result.reason}`);
+        }
+      });
+    }
+  }
+
+  if ('opacity' in config) {
+    const opacityEntries = Array.isArray(config.opacity)
+      ? config.opacity.map((value, index) => [index, value])
+      : isPlainObject(config.opacity)
+        ? Object.entries(config.opacity)
+        : null;
+
+    if (!opacityEntries) {
+      errors.push('opacity must be an array or object of numeric values');
+    } else {
+      opacityEntries.forEach(([name, value]) => {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+          errors.push(`opacity.${name} must be a number between 0 and 100`);
+        }
+      });
+    }
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors };
   }
@@ -223,6 +456,8 @@ module.exports = {
   ALLOWED_FONT_FAMILIES,
   validateHexColour,
   validateSpacingValue,
+  validateDurationValue,
+  validateCssLengthValue,
   validateFontFamily,
   validateConfigShape,
 };

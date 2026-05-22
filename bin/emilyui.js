@@ -20,6 +20,7 @@ const usageText = `
       --prod              Watch source files and rebuild minified CSS on changes
     emily-css info        Show project config and CSS stats
     emily-css doctor      Scan project files for unknown EmilyCSS classes
+      --strict-contrast   Fail when configured colour tokens miss WCAG AA contrast
     emily-css migrate     Generate a Tailwind-to-EmilyCSS migration report
       --import-colours    Detect Tailwind colour palettes and suggest importedPalettes config
     emily-css manifest    Generate the utility/token manifest JSON
@@ -51,7 +52,9 @@ if (command === "init") {
   info();
 } else if (command === "doctor") {
   const { doctor } = require("../src/doctor.js");
-  const result = doctor();
+  const result = doctor({
+    strictContrast: process.argv.includes("--strict-contrast"),
+  });
   process.exitCode = result.exitCode;
 } else if (command === "migrate") {
   const { generateMigrationReport } = require("../src/migrate.js");
@@ -97,6 +100,7 @@ if (command === "init") {
       --prod              Production watch: purge + minify on source changes
     emily-css info        Show project config, output paths, and CSS stats
     emily-css doctor      Scan project files for unknown EmilyCSS classes
+      --strict-contrast   Fail when configured colour tokens miss WCAG AA contrast
     emily-css migrate     Generate a Tailwind-to-EmilyCSS migration report
       --import-colours    Detect Tailwind colour palettes and suggest importedPalettes config
     emily-css manifest    Generate the utility/token manifest JSON

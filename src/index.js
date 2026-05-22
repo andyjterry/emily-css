@@ -252,7 +252,13 @@ function generateCSSVariables(colours, spacing, config) {
       css += `  --color-${name}: ${hex};\n`;
     });
   }
+  css += `  --focus-ring-color: var(--color-neutral-80);\n`;
+  css += `  --focus-ring-width: 2px;\n`;
+  css += `  --focus-ring-offset: 3px;\n`;
   css += `  --focus-ring-glow: color-mix(in srgb, var(--color-brand-80) 12%, transparent);\n`;
+  const radiusMap = { square: '0px', subtle: '4px', rounded: '8px' };
+  const radiusBase = radiusMap[config.cornerStyle] || '8px';
+  css += `  --radius-base: ${radiusBase};\n`;
 
   // Spacing variables
   Object.entries(spacing).forEach(([key, value]) => {
@@ -287,6 +293,15 @@ function generateCSSVariables(colours, spacing, config) {
   });
 
   // Transitions
+  if (config.transitions && typeof config.transitions === 'object') {
+    Object.entries(config.transitions).forEach(([name, value]) => {
+      if (name === 'timing') return;
+      css += `  --duration-${name}: ${value};\n`;
+    });
+    if (config.transitions.timing) {
+      css += `  --timing-base: ${config.transitions.timing};\n`;
+    }
+  }
   css += `  --transition-duration: ${config.transitions.base};\n`;
   css += `  --transition-timing: ${config.transitions.timing};\n`;
 
@@ -321,6 +336,7 @@ const {
   divideUtilities,
   backgroundUtilities,
   filterUtilities,
+  patternComponents,
 } = require('./generators');
 
 // ============================================================================
@@ -641,20 +657,32 @@ function generateTypographyUtilities(config) {
   css += `.hyphens-manual { hyphens: manual; }\n`;
   css += `.hyphens-auto { hyphens: auto; }\n`;
 
-  css += `.leading-none { line-height: 1; }\n`;
-  css += `.leading-tight { line-height: 1.25; }\n`;
-  css += `.leading-snug { line-height: 1.375; }\n`;
-  css += `.leading-normal { line-height: 1.5; }\n`;
-  css += `.leading-relaxed { line-height: 1.625; }\n`;
-  css += `.leading-loose { line-height: 2; }\n`;
+  if (config.typography.lineHeight && typeof config.typography.lineHeight === 'object' && !Array.isArray(config.typography.lineHeight)) {
+    Object.entries(config.typography.lineHeight).forEach(([key, value]) => {
+      css += `.leading-${key} { line-height: ${value}; }\n`;
+    });
+  } else {
+    css += `.leading-none { line-height: 1; }\n`;
+    css += `.leading-tight { line-height: 1.25; }\n`;
+    css += `.leading-snug { line-height: 1.375; }\n`;
+    css += `.leading-normal { line-height: 1.5; }\n`;
+    css += `.leading-relaxed { line-height: 1.625; }\n`;
+    css += `.leading-loose { line-height: 2; }\n`;
+  }
   css += `.text-display { font-size: clamp(2.5rem, 6vw, 4rem); }\n`;
 
-  css += `.tracking-tighter { letter-spacing: -0.05em; }\n`;
-  css += `.tracking-tight { letter-spacing: -0.025em; }\n`;
-  css += `.tracking-normal { letter-spacing: 0em; }\n`;
-  css += `.tracking-wide { letter-spacing: 0.025em; }\n`;
-  css += `.tracking-wider { letter-spacing: 0.05em; }\n`;
-  css += `.tracking-widest { letter-spacing: 0.1em; }\n`;
+  if (config.typography.letterSpacing && typeof config.typography.letterSpacing === 'object' && !Array.isArray(config.typography.letterSpacing)) {
+    Object.entries(config.typography.letterSpacing).forEach(([key, value]) => {
+      css += `.tracking-${key} { letter-spacing: ${value}; }\n`;
+    });
+  } else {
+    css += `.tracking-tighter { letter-spacing: -0.05em; }\n`;
+    css += `.tracking-tight { letter-spacing: -0.025em; }\n`;
+    css += `.tracking-normal { letter-spacing: 0em; }\n`;
+    css += `.tracking-wide { letter-spacing: 0.025em; }\n`;
+    css += `.tracking-wider { letter-spacing: 0.05em; }\n`;
+    css += `.tracking-widest { letter-spacing: 0.1em; }\n`;
+  }
 
   css += `.underline { text-decoration-line: underline; }\n`;
   css += `.overline { text-decoration-line: overline; }\n`;
@@ -1069,445 +1097,26 @@ function addStateVariants(css) {
   return variantCss;
 }
 
-
-// ============================================================================
-// PATTERN COMPONENTS
-// ============================================================================
-// Composite classes that combine multiple utilities into named patterns.
-// These live in @layer components so utilities always take precedence in the cascade.
-// Gap values reference spacing variables generated from emily.config.json,
-// with pixel fallbacks so they work even without the variables in scope.
-
-function generatePatternComponents() {
-  return `
-  /* ---- Centering ---- */
-
-  /* Full-viewport overlay centering — use for modals, lightboxes, toasts */
-  .center-screen {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Transform-based centering within a relative/absolute parent */
-  .center-absolute {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-
-  /* ---- Reading / Prose ---- */
-
-  /* Comfortable reading column — limits line length, centers the block */
-  .prose {
-    max-width: 65ch;
-    margin-inline: auto;
-  }
-
-  .prose-emily {
-    max-width: 65ch;
-    margin-inline: auto;
-  }
-
-  .prose-emily > * + * {
-    margin-top: var(--space-4, 1rem);
-  }
-
-  .prose-emily h2,
-  .prose-emily h3 {
-    font-family: inherit;
-    color: var(--color-neutral-90);
-    line-height: 1.25;
-  }
-
-  .prose-emily h2 {
-    font-size: var(--text-2xl, 24px);
-    margin-top: var(--space-10, 2.5rem);
-  }
-
-  .prose-emily h3 {
-    font-size: var(--text-xl, 20px);
-    margin-top: var(--space-8, 2rem);
-  }
-
-  .prose-emily p,
-  .prose-emily li {
-    color: var(--color-neutral-70);
-    line-height: 1.75;
-  }
-
-  .prose-emily ul,
-  .prose-emily ol {
-    padding-left: var(--space-6, 1.5rem);
-  }
-
-  .prose-emily ul {
-    list-style-type: disc;
-  }
-
-  .prose-emily ol {
-    list-style-type: decimal;
-  }
-
-  .prose-emily a {
-    color: var(--color-brand-80);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .prose-emily code {
-    font-size: var(--text-sm, 14px);
-    background-color: var(--color-neutral-10);
-    border: 1px solid var(--color-neutral-20);
-    border-radius: var(--space-1, 0.25rem);
-    padding: 0.125rem 0.375rem;
-  }
-
-  /* ---- Composition ---- */
-
-  /* Vertical stack with consistent gap — replaces manual margin chains */
-  .stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4, 1rem);
-  }
-
-  /* Horizontal grouping with wrapping — for tags, button rows, icon lists */
-  .cluster {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-4, 1rem);
-    align-items: center;
-  }
-
-  /* ---- Layout ---- */
-
-  /* Constrained width container — 1100px max, full-width on small screens */
-  .width-container {
-    width: 100%;
-    max-width: 1100px;
-    margin-inline: auto;
-    padding-inline: var(--space-4, 1rem);
-  }
-
-  @media (min-width: 640px) {
-    .width-container {
-      padding-inline: var(--space-6, 1.5rem);
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .width-container {
-      padding-inline: var(--space-8, 2rem);
-    }
-  }
-
-  @media (min-width: 1140px) {
-    .width-container {
-      padding-inline: 0;
-    }
-  }
-
-  /* ---- Forms ---- */
-
-  .field-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2, 0.5rem);
-    margin-bottom: var(--space-6, 1.5rem);
-  }
-
-  .field-container label {
-    display: block;
-    font-weight: var(--font-weight-semibold, 600);
-    color: var(--color-neutral-90);
-    font-size: var(--text-base, 16px);
-    line-height: 1.4;
-    margin-bottom: var(--space-1, 0.25rem);
-  }
-
-  fieldset {
-    border: none;
-    padding: 0;
-    margin: 0 0 var(--space-6, 1.5rem);
-  }
-
-  fieldset legend {
-    display: block;
-    font-size: var(--text-lg, 18px);
-    font-weight: var(--font-weight-semibold, 600);
-    margin-bottom: var(--space-3, 0.75rem);
-    color: var(--color-neutral-90);
-    padding: 0;
-  }
-
-  .form-hint {
-    font-size: var(--text-sm, 14px);
-    color: var(--color-neutral-60);
-    margin-bottom: var(--space-1, 0.25rem);
-  }
-
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="number"],
-  input[type="tel"],
-  input[type="url"],
-  input[type="search"],
-  input[type="date"],
-  select,
-  textarea {
-    width: 100%;
-    max-width: 100%;
-    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
-    border: 2px solid var(--color-neutral-30);
-    border-radius: 8px;
-    background-color: #ffffff;
-    color: var(--color-neutral-90);
-    font-family: inherit;
-    font-size: var(--text-base, 16px);
-    line-height: var(--leading-base, 1.6);
-    appearance: none;
-    transition: border-color 200ms ease, box-shadow 200ms ease;
-  }
-
-  select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right var(--space-2, 0.5rem) center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-    padding-right: var(--space-10, 2.5rem);
-    cursor: pointer;
-  }
-
-  textarea {
-    min-height: 120px;
-    resize: vertical;
-  }
-
-  input[type="text"]:focus,
-  input[type="email"]:focus,
-  input[type="password"]:focus,
-  input[type="number"]:focus,
-  input[type="tel"]:focus,
-  input[type="url"]:focus,
-  input[type="search"]:focus,
-  input[type="date"]:focus,
-  select:focus,
-  textarea:focus {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    border-color: var(--color-neutral-80);
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  .checkbox-group,
-  .radio-group {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3, 0.75rem);
-    margin-bottom: var(--space-4, 1rem);
-  }
-
-  .checkbox-group label,
-  .radio-group label {
-    font-weight: var(--font-weight-normal, 400);
-    margin-bottom: 0;
-    cursor: pointer;
-    font-size: var(--text-base, 16px);
-  }
-
-  input[type="checkbox"] {
-    width: 1.5rem;
-    height: 1.5rem;
-    margin: 0;
-    cursor: pointer;
-    accent-color: var(--color-brand-80);
-    flex-shrink: 0;
-  }
-
-  input[type="checkbox"]:focus {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  input[type="radio"] {
-    width: 1.5rem;
-    height: 1.5rem;
-    margin: 0;
-    border-radius: 50%;
-    appearance: none;
-    background-color: #ffffff;
-    border: 2px solid var(--color-neutral-30);
-    display: grid;
-    place-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background-color 200ms ease, border-color 200ms ease;
-  }
-
-  input[type="radio"]::before {
-    content: "";
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 50%;
-    transform: scale(0);
-    transition: 120ms transform ease-in-out;
-    background-color: var(--color-brand-80);
-  }
-
-  input[type="radio"]:checked {
-    border-color: var(--color-brand-80);
-  }
-
-  input[type="radio"]:checked::before {
-    transform: scale(1);
-  }
-
-  input[type="radio"]:hover {
-    background-color: var(--color-brand-10);
-    border-color: var(--color-brand-80);
-  }
-
-  input[type="radio"]:focus {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    border-radius: 50%;
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  input[aria-invalid="true"] {
-    border-color: var(--color-error-80) !important;
-    border-width: 3px;
-  }
-
-  .form-error-message {
-    font-size: var(--text-sm, 14px);
-    font-weight: var(--font-weight-bold, 700);
-    color: var(--color-error-80);
-    margin-top: var(--space-1, 0.25rem);
-    display: block;
-  }
-
-  .error-summary {
-    border: 4px solid var(--color-error-80);
-    padding: var(--space-6, 1.5rem);
-    margin-bottom: var(--space-8, 2rem);
-    border-radius: 8px;
-  }
-
-  .error-summary ul {
-    list-style: disc;
-    padding-left: var(--space-5, 1.25rem);
-  }
-
-  .error-summary a {
-    color: var(--color-error-80);
-  }
-
-  /* ---- Buttons ---- */
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-3, 0.75rem) var(--space-6, 1.5rem);
-    font-weight: var(--font-weight-semibold, 600);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
-    border: 2px solid transparent;
-    text-align: center;
-    min-height: 3rem;
-    font-size: var(--text-base, 16px);
-    text-decoration: none;
-    font-family: inherit;
-    line-height: 1;
-  }
-
-  .btn-primary {
-    background-color: var(--color-brand-80);
-    color: #ffffff;
-    border-color: transparent;
-  }
-
-  .btn-primary:hover {
-    background-color: var(--color-brand-90);
-  }
-
-  .btn-primary:focus-visible {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  .btn-secondary {
-    background-color: #ffffff;
-    color: var(--color-accent-80);
-    border-color: var(--color-accent-80);
-  }
-
-  .btn-secondary:hover {
-    background-color: var(--color-accent-10);
-    color: var(--color-accent-90);
-    border-color: var(--color-accent-90);
-  }
-
-  .btn-secondary:focus-visible {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  .btn-ghost {
-    background-color: transparent;
-    color: var(--color-neutral-80);
-    border-color: transparent;
-  }
-
-  .btn-ghost:hover {
-    background-color: var(--color-neutral-10);
-  }
-
-  .btn-ghost:focus-visible {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  .btn-danger {
-    background-color: var(--color-error-80);
-    color: #ffffff;
-    border-color: transparent;
-  }
-
-  .btn-danger:hover {
-    background-color: var(--color-error-90);
-  }
-
-  .btn-danger:focus-visible {
-    outline: 2px solid var(--color-neutral-80);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 4px var(--focus-ring-glow, rgba(219, 39, 119, 0.1));
-  }
-
-  .btn-sm {
-    padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
-    font-size: var(--text-sm, 14px);
-    min-height: 2.25rem;
-  }
-
-  .btn-lg {
-    padding: var(--space-4, 1rem) var(--space-8, 2rem);
-    font-size: var(--text-lg, 18px);
-    min-height: 3.5rem;
-  }
-`;
+function escapeUtilityClassName(className) {
+  return className.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
+
+function generateExtendedUtilities(config = {}) {
+  const utilities = config.extend?.utilities;
+
+  if (!utilities || typeof utilities !== 'object' || Array.isArray(utilities)) {
+    return '';
+  }
+
+  let css = '\n/* Extended Utilities */\n';
+
+  Object.entries(utilities).forEach(([className, utility]) => {
+    css += `.${escapeUtilityClassName(className)} { ${utility.property}: ${utility.value}; }\n`;
+  });
+
+  return css;
+}
+
 
 // ============================================================================
 // BUILD FUNCTION
@@ -1540,30 +1149,31 @@ function buildFullFramework() {
   utilityCss += generateBorderUtilities(config);
   utilityCss += generateColourUtilities(colours);
   utilityCss += generateSemanticColourUtilities(config.semanticColours);
-  utilityCss += positioningUtilities(spacing);
-  utilityCss += overflowUtilities();
+  utilityCss += positioningUtilities({ config, spacing });
+  utilityCss += overflowUtilities({ config });
   utilityCss += transformUtilities(spacing);
-  utilityCss += shadowUtilities();
+  utilityCss += shadowUtilities({ config });
   utilityCss += ringUtilities(colours);
   utilityCss += objectUtilities();
   utilityCss += tableListUtilities();
   utilityCss += svgUtilities(colours);
   utilityCss += formUtilities();
   utilityCss += verticalAlignUtilities();
-  utilityCss += contentScrollUtilities();
+  utilityCss += contentScrollUtilities(spacing);
   utilityCss += opacityUtilities();
-  utilityCss += transitionUtilities();
+  utilityCss += transitionUtilities({ config });
   utilityCss += blendUtilities();
   utilityCss += cursorUtilities();
   utilityCss += accessibilityUtilities();
   utilityCss += containerUtilities();
   utilityCss += codeUtilities();
-  utilityCss += animationUtilities();
+  utilityCss += animationUtilities(config);
   utilityCss += backdropUtilities();
   utilityCss += spaceUtilities(spacing);
   utilityCss += divideUtilities(spacing, colours);
   utilityCss += backgroundUtilities();
   utilityCss += filterUtilities();
+  utilityCss += generateExtendedUtilities(config);
 
   utilityCss = addStateVariants(utilityCss);
   utilityCss = addAriaDataVariants(utilityCss);
@@ -1719,7 +1329,7 @@ ${bodyFont}`;
 
   const baseStylesCss = generateBaseStyles(config);
   css += `@layer base {${baseCss}${baseStylesCss}}\n\n`;
-  css += `@layer components {\n${generatePatternComponents()}}\n\n`;
+  css += `@layer components {\n${patternComponents(config)}}\n\n`;
   css += `@layer utilities {\n${utilityCss}}\n`;
 
   const fullCssPath = getFullCssPath(config);
@@ -1826,7 +1436,7 @@ function ensureFullFramework() {
   }
 }
 
-function build(options = {}) {
+function purge(options = {}) {
   const totalStart = Date.now();
   const frameworkStart = Date.now();
   ensureFullFramework();
@@ -1864,6 +1474,25 @@ function build(options = {}) {
   console.log('Build complete');
 }
 
+function build(options = {}) {
+  const totalStart = Date.now();
+  const frameworkStart = Date.now();
+
+  buildFullFramework();
+
+  const frameworkMs = Date.now() - frameworkStart;
+
+  if (options.profile) {
+    const totalMs = Date.now() - totalStart;
+
+    console.log('\nEmilyCSS build profile\n');
+    console.log('Framework: ' + frameworkMs + 'ms');
+    console.log('Total:     ' + totalMs + 'ms');
+  }
+
+  console.log('Build complete');
+}
+
 if (require.main === module) {
   const args = process.argv.slice(2);
   build({
@@ -1872,8 +1501,15 @@ if (require.main === module) {
   });
 }
 
+// Wrapper kept for backwards compatibility — delegates to src/generators/patterns.js
+// Generates composite classes including .prose, .prose-emily, .stack, .cluster, .sidebar, etc.
+function generatePatternComponents(config) {
+  return patternComponents(config);
+}
+
 module.exports = {
   build,
+  purge,
   buildFullFramework,
   buildProductionCss,
   ensureFullFramework,
@@ -1893,5 +1529,7 @@ module.exports = {
   addStateVariants,
   addAriaDataVariants,
   addResponsiveVariants,
+  generateExtendedUtilities,
+  generatePatternComponents,
   generateManifest,
 };

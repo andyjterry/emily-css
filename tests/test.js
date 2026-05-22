@@ -2783,6 +2783,14 @@ test('accessibilityUtilities includes .focus-ring-none:focus-visible', () => {
   assert.ok(css.includes('.focus-ring-none:focus-visible'), 'Missing .focus-ring-none:focus-visible');
 });
 
+test('accessibilityUtilities includes touch target helpers', () => {
+  const css = a11yUtils();
+  assert.ok(css.includes('.touch-target::before'), 'Missing .touch-target minimum hit area');
+  assert.ok(css.includes('width: max(100%, 24px)'), 'Expected .touch-target to keep 24px minimum');
+  assert.ok(css.includes('.touch-target-44::before'), 'Missing .touch-target-44 comfortable hit area');
+  assert.ok(css.includes('width: max(100%, 44px)'), 'Expected .touch-target-44 to use 44px minimum');
+});
+
 // ─── 18. ARIA & Data-State Variants ──────────────────────────────────────────
 
 section('18. ARIA & Data-State Variants');
@@ -3480,6 +3488,28 @@ test('doctor warnings alone do not return a failing exit code', () => {
   }
 });
 
+test('doctor strict contrast turns contrast warnings into a failing exit code', () => {
+  const tmpDir = createTempProject();
+  const originalCwd = process.cwd();
+
+  try {
+    buildDoctorConfig(tmpDir, 'page.html', '<div class="flex"></div>');
+    const tmpConfig = JSON.parse(fs.readFileSync(path.join(tmpDir, 'emily.config.json'), 'utf8'));
+    tmpConfig.colours = { low: '#ffffff' };
+    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
+    process.chdir(tmpDir);
+
+    const result = doctor({ strictContrast: true });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(result.issues.length, 0);
+    assert.ok(result.contrastFailures.length > 0, 'Expected strict contrast failures');
+  } finally {
+    process.chdir(originalCwd);
+    removeTempProject(tmpDir);
+  }
+});
+
 test('createFontRuntimeWarnings flags missing @fontsource package and Nuxt import mismatch', () => {
   const tmpDir = createTempProject();
   const originalCwd = process.cwd();
@@ -3594,6 +3624,52 @@ test('CLI doctor exits cleanly when no issues are found', () => {
       !result.stdout.includes('doctor found') || result.stdout.includes('warnings'),
       'Expected doctor to exit cleanly with no class issues (warnings are allowed)',
     );
+  } finally {
+    removeTempProject(tmpDir);
+  }
+});
+
+test('CLI doctor exits 0 without strict contrast when only contrast warnings are found', () => {
+  const tmpDir = createTempProject();
+
+  try {
+    buildDoctorConfig(tmpDir, 'page.html', '<div class="flex"></div>');
+    const tmpConfig = JSON.parse(fs.readFileSync(path.join(tmpDir, 'emily.config.json'), 'utf8'));
+    tmpConfig.colours = { low: '#ffffff' };
+    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
+
+    const result = spawnSync('node', [path.join(__dirname, '../bin/emilyui.js'), 'doctor'], {
+      cwd: tmpDir,
+      encoding: 'utf8',
+    });
+
+    assert.strictEqual(result.status, 0);
+    assert.ok(result.stdout.includes('WCAG AA needs 4.5:1'), 'Expected contrast warning output');
+  } finally {
+    removeTempProject(tmpDir);
+  }
+});
+
+test('CLI doctor --strict-contrast exits 1 when low-contrast tokens exist', () => {
+  const tmpDir = createTempProject();
+
+  try {
+    buildDoctorConfig(tmpDir, 'page.html', '<div class="flex"></div>');
+    const tmpConfig = JSON.parse(fs.readFileSync(path.join(tmpDir, 'emily.config.json'), 'utf8'));
+    tmpConfig.colours = { low: '#ffffff' };
+    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
+
+    const result = spawnSync('node', [path.join(__dirname, '../bin/emilyui.js'), 'doctor', '--strict-contrast'], {
+      cwd: tmpDir,
+      encoding: 'utf8',
+    });
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    assert.strictEqual(result.status, 1);
+    assert.ok(output.includes('Contrast failure'), 'Expected strict contrast failure output');
+    assert.ok(output.includes(':1 contrast'), 'Expected contrast ratio in output');
+    assert.ok(output.includes('4.5:1 for normal text'), 'Expected normal text WCAG requirement');
+    assert.ok(output.includes('3:1 for large text'), 'Expected large text WCAG requirement');
   } finally {
     removeTempProject(tmpDir);
   }

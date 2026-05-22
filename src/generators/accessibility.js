@@ -14,6 +14,9 @@ function accessibilityUtilities() {
 /* Touch target — WCAG 2.2 SC 2.5.8 minimum 24x24px hit area */
 .touch-target { position: relative; }
 .touch-target::before { content: ''; position: absolute; top: 50%; left: 50%; width: max(100%, 24px); height: max(100%, 24px); transform: translate(-50%, -50%); }
+/* Touch target 44 — comfortable 44x44px hit area */
+.touch-target-44 { position: relative; }
+.touch-target-44::before { content: ''; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 
 /* Skip link — reveals on focus for keyboard/AT users */
 .skip-link { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }

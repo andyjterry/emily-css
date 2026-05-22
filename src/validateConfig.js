@@ -8,7 +8,7 @@ function validateConfigOrExit() {
   const configPath = path.join(process.cwd(), 'emily.config.json');
 
   if (!fs.existsSync(configPath)) {
-    console.error('Invalid EmilyCSS config: emily.config.json not found.');
+    console.error('Invalid EmilyCSS config: emily.config.json not found. Run "emily-css init" first.');
     process.exit(1);
   }
 

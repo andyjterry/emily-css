@@ -502,6 +502,8 @@ function createContrastWarnings(config) {
           file: 'emily.config.json',
           reason: 'low-contrast-token',
           className: `text-${name}-${shade}`,
+          ratio,
+          requirement: '4.5:1 for normal text, 3:1 for large text',
           message: `text-${name}-${shade} on a light background has ~${ratio.toFixed(1)}:1 contrast (WCAG AA needs 4.5:1 for normal text). Consider using a darker shade.`,
         });
       }
@@ -517,6 +519,8 @@ function createContrastWarnings(config) {
           file: 'emily.config.json',
           reason: 'low-contrast-token',
           className: `text-${name}-${shade}`,
+          ratio,
+          requirement: '4.5:1 for normal text, 3:1 for large text',
           message: `text-${name}-${shade} on a dark background has ~${ratio.toFixed(1)}:1 contrast (WCAG AA needs 4.5:1 for normal text). Consider using a lighter shade.`,
         });
       }
@@ -526,7 +530,8 @@ function createContrastWarnings(config) {
   return warnings;
 }
 
-function doctor() {
+function doctor(options = {}) {
+  const strictContrast = options.strictContrast === true;
   const config = getConfig();
 
   ensureFullFramework();
@@ -586,10 +591,12 @@ function doctor() {
     }
   });
 
-  warnings.push(...createContrastWarnings(config));
+  const contrastWarnings = createContrastWarnings(config);
+  warnings.push(...contrastWarnings);
   warnings.push(...createFontRuntimeWarnings(config));
+  const strictContrastFailures = strictContrast ? contrastWarnings : [];
 
-  if (issues.length === 0 && warnings.length === 0) {
+  if (issues.length === 0 && warnings.length === 0 && strictContrastFailures.length === 0) {
     console.log("\u2713 EmilyCSS doctor found no class issues");
     return { ok: true, issues: [], warnings: [], exitCode: 0 };
   }
@@ -605,8 +612,30 @@ function doctor() {
     });
   }
 
-  if (issues.length === 0) {
+  if (strictContrastFailures.length > 0) {
+    console.log(
+      `EmilyCSS doctor strict contrast failure${strictContrastFailures.length === 1 ? "" : "s"} (${strictContrastFailures.length})\n`,
+    );
+    strictContrastFailures.forEach((failure) => {
+      console.log(path.relative(process.cwd(), failure.file));
+      console.log(`  Contrast failure: ${failure.message}`);
+      console.log(`  Requirement: WCAG AA ${failure.requirement}.`);
+      console.log("");
+    });
+  }
+
+  if (issues.length === 0 && strictContrastFailures.length === 0) {
     return { ok: true, issues: [], warnings, exitCode: 0 };
+  }
+
+  if (issues.length === 0) {
+    return {
+      ok: false,
+      issues,
+      warnings,
+      contrastFailures: strictContrastFailures,
+      exitCode: 1,
+    };
   }
 
   console.log(`EmilyCSS doctor found ${issues.length} issue${issues.length === 1 ? "" : "s"}\n`);

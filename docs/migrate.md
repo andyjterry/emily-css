@@ -9,7 +9,7 @@ It does not modify source files.
 1. Build EmilyCSS first so migrate can use full utility metadata:
 
 ```bash
-npx emily-css build --keep-full
+npx emily-css build
 ```
 
 2. Run migrate:

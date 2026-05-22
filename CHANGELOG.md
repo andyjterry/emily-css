@@ -4,6 +4,83 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+
+## v2.0.0 — May 2026
+
+**The Legitimacy Release. New pattern layer, token-driven config expansion, formBase opt-in, focus ring tokens, manifest schema v2, and accessibility overhaul. All breaking changes isolated to this release.**
+
+### Breaking Changes
+
+- **`formBase` is now opt-in.** Bare element form styles (`input`, `select`, `textarea`, `fieldset`) are no longer applied by default. Add `"formBase": true` to `emily.config.json` to restore them. This prevents EmilyCSS from stomping CMS-generated markup in Drupal, Power Pages, and similar environments.
+- **Focus ring tokens required for consistent button focus styles.** `.btn-*` variants now read from `--focus-ring-color` and `--focus-ring-glow` token variables. Add them to your config or override in your own styles.
+- **`touch-target` minimum updated to 44px.** Previously targeted the WCAG 2.2 minimum of 24px. Updated to the practical 44px touch target to match `.target-size`.
+- **Manifest schema bumped to v2.** `emily.manifest.json` now includes `layer`, `responsive`, `states`, and `pseudo` fields per class. Any tooling consuming the v1 manifest shape will need updating.
+
+### Added — Pattern Layer (`src/generators/patterns.js`)
+
+All composite patterns extracted from `src/index.js` into a dedicated `patterns.js` generator. Patterns live in `@layer components` so utilities always win in the cascade.
+
+New layout patterns:
+- `.stack-sm`, `.stack-lg`, `.stack-xl` — vertical rhythm scale variants
+- `.cluster-start`, `.cluster-between`, `.cluster-end` — cluster justification variants
+- `.sidebar` — intrinsic main/aside layout that wraps without breakpoints
+- `.switcher` — row-to-stack layout at a configurable container width
+- `.cover` — full-height flex column for heroes and empty states
+- `.center` — readable max-width centering (`max-inline-size: 65ch`)
+- `.grid-auto`, `.grid-auto-sm`, `.grid-auto-lg` — responsive auto-fit card grids
+- `.equal-columns` — equal-width columns, stacks on mobile
+- `.media-object` — avatar/icon beside text, no-grow image
+- `.inline-list` — horizontal `<ul>` reset for nav/breadcrumb/metadata
+- `.content`, `.content-wide` — readable document widths (65ch / 80ch)
+- `.section`, `.section-sm`, `.section-lg` — vertical section spacing from tokens
+- `.form-row`, `.form-actions` — label-control grid and action row wrappers
+- `.button-group` — inline action cluster with `role="group"` isolation
+
+Accessibility patterns:
+- `.focus-ring-strong` — 3px solid brand-80 outline with offset
+- `.target-size` — 44px min touch target
+
+### Added — Corner Style Init Option
+
+`emily-css init` now prompts for a corner style:
+- **Square** — `--radius-base: 0`
+- **Subtle** — `--radius-base: 4px`
+- **Rounded** — `--radius-base: 8px` (default)
+
+All button, input, and component patterns inherit from `--radius-base`.
+
+### Added — `extend.utilities` System
+
+Custom utility escape hatch in `emily.config.json`:
+
+```json
+"extend": {
+  "utilities": {
+    "w-hero": { "property": "width", "value": "720px" }
+  }
+}
+```
+
+Generated into `@layer utilities` with full responsive and state variant support.
+
+### Changed
+
+- `.prose` is now the full prose implementation. `.prose-emily` kept as a backwards-compatible alias.
+- All pattern composite classes moved from `src/index.js` to `src/generators/patterns.js`.
+- `emily-css manifest` now outputs schema v2 with per-class metadata: `layer`, `responsive`, `states`, `pseudo`, `category`.
+- Manifest pseudo-class and pseudo-element utilities now correctly included in manifest output.
+- Config validation expanded to catch unknown top-level keys, invalid types, and malformed `extend.utilities` entries.
+- `docs/patterns.md` added — reference for all layout pattern classes.
+- `docs/accessibility.md` rewritten with pattern-specific guidance.
+
+### Fixed
+
+- `emily.manifest.json` version now reads directly from `package.json` — no more version mismatch.
+- Variant metadata (`responsive`, `states`) was missing for several utility categories in manifest.
+- `dist/` removed from npm package `files` in `package.json`.
+
+---
+
 ## v1.2.20 — May 2026
 
 **fix(init,uninstall): clean Nuxt runtime wiring and prevent duplicate emily stylesheet links**
