@@ -496,6 +496,181 @@ function getFontImportGuidance(projectName, fontImportPaths) {
   return lines;
 }
 
+function patchNuxtConfigCssImports(content, fontImportPaths) {
+  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+    return { changed: false, content };
+  }
+
+  const cssRegex = /(^\s*css\s*:\s*\[)([\s\S]*?)(^\s*\],?)/m;
+  const match = content.match(cssRegex);
+
+  if (match) {
+    const open = match[1];
+    const body = match[2];
+    const close = match[3].endsWith(",") ? match[3] : `${match[3]},`;
+    const propertyIndentMatch = open.match(/^(\s*)/);
+    const propertyIndent = propertyIndentMatch ? propertyIndentMatch[1] : "  ";
+    const itemIndent = propertyIndent + "  ";
+    const keptLines = body
+      .split("\n")
+      .filter((line) => !line.includes("@fontsource/"))
+      .filter((line) => line.trim() !== "");
+    const fontLines = fontImportPaths.map((fontPath) => `${itemIndent}'${fontPath}',`);
+    const rebuiltBody = `\n${[...keptLines, ...fontLines].join("\n")}\n`;
+    const replacement = `${open}${rebuiltBody}${close}`;
+    const nextContent = content.replace(cssRegex, replacement);
+    return { changed: nextContent !== content, content: nextContent };
+  }
+
+  const configOpenIndex = content.indexOf("defineNuxtConfig({");
+  if (configOpenIndex === -1) {
+    return { changed: false, content };
+  }
+
+  const insertIndex = configOpenIndex + "defineNuxtConfig({".length;
+  const cssBlock =
+    `\n  css: [\n${fontImportPaths.map((fontPath) => `    '${fontPath}',`).join("\n")}\n  ],\n`;
+  const nextContent = content.slice(0, insertIndex) + cssBlock + content.slice(insertIndex);
+  return { changed: true, content: nextContent };
+}
+
+function patchJsEntryWithImports(content, fontImportPaths) {
+  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+    return { changed: false, content };
+  }
+
+  const missing = fontImportPaths.filter(
+    (fontPath) => !content.includes(`"${fontPath}"`) && !content.includes(`'${fontPath}'`),
+  );
+
+  if (missing.length === 0) {
+    return { changed: false, content };
+  }
+
+  const importBlock = missing.map((fontPath) => `import "${fontPath}";`).join("\n") + "\n";
+  return { changed: true, content: importBlock + content };
+}
+
+function patchAstroWithImports(content, fontImportPaths) {
+  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+    return { changed: false, content };
+  }
+
+  const missing = fontImportPaths.filter(
+    (fontPath) => !content.includes(`"${fontPath}"`) && !content.includes(`'${fontPath}'`),
+  );
+
+  if (missing.length === 0) {
+    return { changed: false, content };
+  }
+
+  const importLines = missing.map((fontPath) => `import "${fontPath}";`).join("\n");
+  const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+  const match = content.match(frontmatterRegex);
+
+  if (match) {
+    const updatedFrontmatter = `---\n${match[1]}\n${importLines}\n---`;
+    const nextContent = content.replace(frontmatterRegex, updatedFrontmatter);
+    return { changed: nextContent !== content, content: nextContent };
+  }
+
+  const nextContent = `---\n${importLines}\n---\n\n${content}`;
+  return { changed: true, content: nextContent };
+}
+
+function applyFontRuntimeWiring(projectName, fontImportPaths) {
+  const result = {
+    changed: false,
+    applied: false,
+    target: null,
+    message: "",
+  };
+
+  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+    result.message = "No font imports required.";
+    return result;
+  }
+
+  if (projectName === "Nuxt") {
+    const target = hasFile("nuxt.config.ts") ? "nuxt.config.ts" : hasFile("nuxt.config.js") ? "nuxt.config.js" : null;
+    if (!target) {
+      result.message = "Nuxt config file not found for automatic font wiring.";
+      return result;
+    }
+    const original = fs.readFileSync(path.join(process.cwd(), target), "utf8");
+    const patched = patchNuxtConfigCssImports(original, fontImportPaths);
+    if (patched.changed) {
+      fs.writeFileSync(path.join(process.cwd(), target), patched.content);
+      result.changed = true;
+    }
+    result.applied = true;
+    result.target = target;
+    result.message = patched.changed
+      ? `Updated ${target} css imports.`
+      : `${target} already had matching font imports.`;
+    return result;
+  }
+
+  const jsTargetsByProject = {
+    "Next.js": ["app/layout.tsx", "app/layout.jsx", "pages/_app.tsx", "pages/_app.jsx", "pages/_app.ts", "pages/_app.js"],
+    "React": ["src/main.tsx", "src/main.jsx", "src/main.ts", "src/main.js"],
+    "Vue/Vite": ["src/main.ts", "src/main.js"],
+  };
+
+  if (jsTargetsByProject[projectName]) {
+    const target = jsTargetsByProject[projectName].find((candidate) => hasFile(candidate));
+    if (!target) {
+      result.message = `${projectName} entry file not found for automatic font wiring.`;
+      return result;
+    }
+    const original = fs.readFileSync(path.join(process.cwd(), target), "utf8");
+    const patched = patchJsEntryWithImports(original, fontImportPaths);
+    if (patched.changed) {
+      fs.writeFileSync(path.join(process.cwd(), target), patched.content);
+      result.changed = true;
+    }
+    result.applied = true;
+    result.target = target;
+    result.message = patched.changed
+      ? `Added font imports to ${target}.`
+      : `${target} already had matching font imports.`;
+    return result;
+  }
+
+  if (projectName === "Astro") {
+    const target = ["src/layouts/Layout.astro", "src/pages/index.astro"].find((candidate) => hasFile(candidate));
+    if (!target) {
+      result.message = "Astro layout/page file not found for automatic font wiring.";
+      return result;
+    }
+    const original = fs.readFileSync(path.join(process.cwd(), target), "utf8");
+    const patched = patchAstroWithImports(original, fontImportPaths);
+    if (patched.changed) {
+      fs.writeFileSync(path.join(process.cwd(), target), patched.content);
+      result.changed = true;
+    }
+    result.applied = true;
+    result.target = target;
+    result.message = patched.changed
+      ? `Added font imports to ${target}.`
+      : `${target} already had matching font imports.`;
+    return result;
+  }
+
+  result.message = `${projectName} uses manual font wiring guidance.`;
+  return result;
+}
+
+function canAutoWireFontRuntime(projectName) {
+  return (
+    projectName === "Nuxt" ||
+    projectName === "Next.js" ||
+    projectName === "React" ||
+    projectName === "Vue/Vite" ||
+    projectName === "Astro"
+  );
+}
+
 function addEmilyScriptsToPackageJson() {
   const packagePath = path.join(process.cwd(), "package.json");
 
@@ -1109,6 +1284,8 @@ async function init(options = {}) {
     let fontInstallSkipped = false;
     let fontPackagesAlreadyInstalled = false;
     let fontInstallError = "";
+    let fontRuntimeWiringAttempted = false;
+    let fontRuntimeWiringResult = null;
 
     if (selectedFontPackages.length > 0 && missingFontPackages.length === 0) {
       fontPackagesAlreadyInstalled = true;
@@ -1156,6 +1333,27 @@ async function init(options = {}) {
           chalk.gray(
             "  Skipped font package install. You can load these fonts manually later.",
           ),
+        );
+      }
+    }
+
+    if (selectedFontImportPaths.length > 0 && canAutoWireFontRuntime(detectedProject.name)) {
+      let shouldWireFontRuntime = false;
+      if (initOptions.yes) {
+        shouldWireFontRuntime = true;
+      } else {
+        shouldWireFontRuntime = await new Confirm({
+          name: "wireFontImports",
+          message: "Auto-wire selected font imports into your " + detectedProject.name + " entry?",
+          initial: true,
+        }).run();
+      }
+
+      if (shouldWireFontRuntime) {
+        fontRuntimeWiringAttempted = true;
+        fontRuntimeWiringResult = applyFontRuntimeWiring(
+          detectedProject.name,
+          selectedFontImportPaths,
         );
       }
     }
@@ -1295,6 +1493,25 @@ async function init(options = {}) {
               (fontInstallError
                 ? "\n" + chalk.gray("  Install error: " + fontInstallError)
                 : "");
+        const fontRuntimeSummary = !fontRuntimeWiringAttempted
+          ? selectedFontImportPaths.length === 0
+            ? ""
+            : "\n\nFont runtime wiring:\n" +
+              chalk.gray("  Skipped auto-wiring. Use guidance below if needed.") +
+              fontGuidanceBlock
+          : fontRuntimeWiringResult && fontRuntimeWiringResult.applied
+            ? "\n\nFont runtime wiring:\n" +
+              (fontRuntimeWiringResult.changed
+                ? chalk.green("  " + fontRuntimeWiringResult.message)
+                : chalk.gray("  " + fontRuntimeWiringResult.message))
+            : "\n\nFont runtime wiring:\n" +
+              chalk.yellow(
+                "  " +
+                  (fontRuntimeWiringResult && fontRuntimeWiringResult.message
+                    ? fontRuntimeWiringResult.message
+                    : "Automatic wiring could not be applied."),
+              ) +
+              fontGuidanceBlock;
 
         console.log(
           "\n" +
@@ -1312,6 +1529,7 @@ async function init(options = {}) {
                 "\n" +
                 chalk.yellow("  " + detectedProject.linkHint) +
                 fontInstallSummary +
+                fontRuntimeSummary +
                 (scriptsAdded
                   ? "\n\nScripts added:\n" +
                     chalk.cyan("  npm run emily:build\n") +
@@ -1413,4 +1631,9 @@ module.exports = {
   formatInstallCommand,
   getFontImportPaths,
   getFontImportGuidance,
+  patchNuxtConfigCssImports,
+  patchJsEntryWithImports,
+  patchAstroWithImports,
+  applyFontRuntimeWiring,
+  canAutoWireFontRuntime,
 };

@@ -39,6 +39,7 @@ const {
   hexToRelativeLuminance,
   contrastRatio,
   createContrastWarnings,
+  createFontRuntimeWarnings,
 } = require('../src/doctor.js');
 const { info } = require('../src/info.js');
 const {
@@ -2292,6 +2293,8 @@ const {
   getFontImportGuidance,
   formatInstallCommand,
   getInstallCommand,
+  patchNuxtConfigCssImports,
+  patchJsEntryWithImports,
 } = require('../src/init.js');
 
 test('parseInitOptions supports --yes, --skip-font-install, and --fresh', () => {
@@ -2318,6 +2321,43 @@ test('getFontImportGuidance returns Nuxt css-array guidance', () => {
   const guidance = getFontImportGuidance('Nuxt', ['@fontsource/inter/400.css']);
   assert.ok(guidance.some((line) => line.includes('nuxt.config')));
   assert.ok(guidance.some((line) => line.includes('@fontsource/inter/400.css')));
+});
+
+test('patchNuxtConfigCssImports replaces stale @fontsource imports', () => {
+  const input = [
+    'export default defineNuxtConfig({',
+    '  css: [',
+    "    '@fontsource/inter/400.css',",
+    "    '@fontsource/lexend/400.css',",
+    '  ],',
+    '})',
+    '',
+  ].join('\n');
+
+  const result = patchNuxtConfigCssImports(input, ['@fontsource/figtree/400.css']);
+  assert.strictEqual(result.changed, true);
+  assert.ok(result.content.includes("'@fontsource/figtree/400.css'"));
+  assert.ok(!result.content.includes('@fontsource/inter/400.css'));
+  assert.ok(!result.content.includes('@fontsource/lexend/400.css'));
+});
+
+test('patchJsEntryWithImports prepends only missing imports', () => {
+  const input = [
+    'import "./style.css";',
+    'import "@fontsource/inter/400.css";',
+    'console.log("hello");',
+    '',
+  ].join('\n');
+
+  const result = patchJsEntryWithImports(input, [
+    '@fontsource/inter/400.css',
+    '@fontsource/figtree/400.css',
+  ]);
+
+  assert.strictEqual(result.changed, true);
+  assert.ok(result.content.startsWith('import "@fontsource/figtree/400.css";'));
+  const interCount = (result.content.match(/@fontsource\/inter\/400\.css/g) || []).length;
+  assert.strictEqual(interCount, 1, 'existing font import should not be duplicated');
 });
 
 test('getInstallCommand and formatInstallCommand support pnpm', () => {
@@ -3209,6 +3249,57 @@ test('doctor warnings alone do not return a failing exit code', () => {
     assert.strictEqual(result.exitCode, 0);
     assert.strictEqual(result.issues.length, 0);
     assert.ok(result.warnings.length > 0, 'Expected at least one warning');
+  } finally {
+    process.chdir(originalCwd);
+    removeTempProject(tmpDir);
+  }
+});
+
+test('createFontRuntimeWarnings flags missing @fontsource package and Nuxt import mismatch', () => {
+  const tmpDir = createTempProject();
+  const originalCwd = process.cwd();
+
+  try {
+    const tmpConfig = JSON.parse(JSON.stringify(config));
+    tmpConfig.fontFamily = { heading: 'mono', body: 'lexend' };
+    tmpConfig.purge = {
+      sourceDir: '.',
+      sourceGlobs: ['./page.html'],
+      ignore: [],
+      extensions: ['.html'],
+      projectType: 'Nuxt',
+    };
+
+    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ name: 'tmp' }, null, 2));
+    fs.writeFileSync(
+      path.join(tmpDir, 'nuxt.config.ts'),
+      [
+        'export default defineNuxtConfig({',
+        '  css: [',
+        "    '@fontsource/inter/400.css',",
+        "    '@fontsource/lexend/400.css',",
+        '  ],',
+        '})',
+        '',
+      ].join('\n'),
+    );
+
+    process.chdir(tmpDir);
+    const warnings = createFontRuntimeWarnings(tmpConfig);
+
+    assert.ok(
+      warnings.some((warning) => warning.reason === 'missing-font-package'),
+      'Expected missing-font-package warning',
+    );
+    assert.ok(
+      warnings.some((warning) => warning.reason === 'missing-font-import'),
+      'Expected missing-font-import warning',
+    );
+    assert.ok(
+      warnings.some((warning) => warning.reason === 'stale-font-import'),
+      'Expected stale-font-import warning',
+    );
   } finally {
     process.chdir(originalCwd);
     removeTempProject(tmpDir);

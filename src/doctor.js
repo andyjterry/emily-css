@@ -14,6 +14,52 @@ const {
   getManifestOutputPath,
 } = require("./config.js");
 
+const FONT_PACKAGE_BY_KEY = {
+  inter: "@fontsource/inter",
+  lexend: "@fontsource/lexend",
+  figtree: "@fontsource/figtree",
+  "dm-sans": "@fontsource/dm-sans",
+  nunito: "@fontsource/nunito",
+  atkinson: "@fontsource/atkinson-hyperlegible",
+};
+
+const FONT_IMPORTS_BY_KEY = {
+  inter: [
+    "@fontsource/inter/400.css",
+    "@fontsource/inter/500.css",
+    "@fontsource/inter/600.css",
+    "@fontsource/inter/700.css",
+  ],
+  lexend: [
+    "@fontsource/lexend/400.css",
+    "@fontsource/lexend/500.css",
+    "@fontsource/lexend/600.css",
+    "@fontsource/lexend/700.css",
+  ],
+  figtree: [
+    "@fontsource/figtree/400.css",
+    "@fontsource/figtree/500.css",
+    "@fontsource/figtree/600.css",
+    "@fontsource/figtree/700.css",
+  ],
+  "dm-sans": [
+    "@fontsource/dm-sans/400.css",
+    "@fontsource/dm-sans/500.css",
+    "@fontsource/dm-sans/700.css",
+  ],
+  nunito: [
+    "@fontsource/nunito/400.css",
+    "@fontsource/nunito/500.css",
+    "@fontsource/nunito/700.css",
+  ],
+  atkinson: [
+    "@fontsource/atkinson-hyperlegible/400.css",
+    "@fontsource/atkinson-hyperlegible/700.css",
+  ],
+};
+
+const FONT_KEYS_WITHOUT_PACKAGE = new Set(["system", "georgia", "mono"]);
+
 function normaliseClassForManifest(className) {
   if (!className || typeof className !== "string") {
     return { original: className, baseClass: "", variants: [], variant: null };
@@ -149,6 +195,166 @@ function loadManifest(config, css) {
   }
 
   return generateManifest(css, config);
+}
+
+function getSelectedFontKeysFromConfig(config) {
+  const fontFamily = config && config.fontFamily;
+
+  if (!fontFamily) return [];
+
+  if (typeof fontFamily === "string") {
+    return fontFamily ? [fontFamily] : [];
+  }
+
+  if (typeof fontFamily === "object") {
+    const keys = [];
+    if (typeof fontFamily.heading === "string") keys.push(fontFamily.heading);
+    if (typeof fontFamily.body === "string") keys.push(fontFamily.body);
+    return Array.from(new Set(keys));
+  }
+
+  return [];
+}
+
+function getSelectedFontPackages(fontKeys) {
+  const packages = [];
+  fontKeys.forEach((key) => {
+    if (FONT_KEYS_WITHOUT_PACKAGE.has(key)) return;
+    const pkg = FONT_PACKAGE_BY_KEY[key];
+    if (pkg && !packages.includes(pkg)) packages.push(pkg);
+  });
+  return packages;
+}
+
+function getFontImportPaths(fontKeys) {
+  const imports = [];
+  fontKeys.forEach((key) => {
+    const values = FONT_IMPORTS_BY_KEY[key];
+    if (Array.isArray(values)) {
+      values.forEach((value) => {
+        if (!imports.includes(value)) imports.push(value);
+      });
+    }
+  });
+  return imports;
+}
+
+function hasDependency(packageJson, pkgName) {
+  if (!packageJson || typeof packageJson !== "object") return false;
+  const dependencyFields = [
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+  ];
+  return dependencyFields.some((field) => Boolean(packageJson[field] && packageJson[field][pkgName]));
+}
+
+function detectRuntimeFontTarget(config) {
+  const projectType = String(config?.purge?.projectType || "").toLowerCase();
+  const candidates = [];
+
+  if (projectType.includes("nuxt")) {
+    candidates.push("nuxt.config.ts", "nuxt.config.js");
+  } else if (projectType.includes("next")) {
+    candidates.push(
+      "app/layout.tsx",
+      "app/layout.jsx",
+      "pages/_app.tsx",
+      "pages/_app.jsx",
+      "pages/_app.ts",
+      "pages/_app.js",
+    );
+  } else if (projectType.includes("react")) {
+    candidates.push("src/main.tsx", "src/main.jsx", "src/main.ts", "src/main.js");
+  } else if (projectType.includes("vue")) {
+    candidates.push("src/main.ts", "src/main.js");
+  } else if (projectType.includes("astro")) {
+    candidates.push("src/layouts/Layout.astro", "src/pages/index.astro");
+  }
+
+  return candidates.find((candidate) => fs.existsSync(path.join(process.cwd(), candidate))) || null;
+}
+
+function extractFontsourceImports(content) {
+  const imports = new Set();
+  const regex = /@fontsource\/[a-z0-9-]+\/[0-9]+\.css/gi;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    imports.add(match[0]);
+  }
+  return Array.from(imports);
+}
+
+function createFontRuntimeWarnings(config) {
+  const warnings = [];
+  const fontKeys = getSelectedFontKeysFromConfig(config);
+  const selectedFontPackages = getSelectedFontPackages(fontKeys);
+  const expectedImports = getFontImportPaths(fontKeys);
+
+  if (selectedFontPackages.length === 0 && expectedImports.length === 0) {
+    return warnings;
+  }
+
+  const packagePath = path.join(process.cwd(), "package.json");
+  let packageJson = null;
+  if (fs.existsSync(packagePath)) {
+    try {
+      packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    } catch {
+      packageJson = null;
+    }
+  }
+
+  const missingPackages = selectedFontPackages.filter((pkgName) => !hasDependency(packageJson, pkgName));
+  if (missingPackages.length > 0) {
+    warnings.push({
+      file: "package.json",
+      reason: "missing-font-package",
+      className: null,
+      message:
+        "Selected fonts in emily.config.json require missing packages: " +
+        missingPackages.join(", "),
+    });
+  }
+
+  const runtimeTarget = detectRuntimeFontTarget(config);
+  if (!runtimeTarget) {
+    return warnings;
+  }
+
+  let content = "";
+  try {
+    content = fs.readFileSync(path.join(process.cwd(), runtimeTarget), "utf8");
+  } catch {
+    return warnings;
+  }
+
+  const foundImports = extractFontsourceImports(content);
+  const missingImports = expectedImports.filter((fontImport) => !foundImports.includes(fontImport));
+  const staleImports = foundImports.filter((fontImport) => !expectedImports.includes(fontImport));
+
+  if (missingImports.length > 0) {
+    warnings.push({
+      file: runtimeTarget,
+      reason: "missing-font-import",
+      className: null,
+      message:
+        "Missing @fontsource imports for selected fonts: " + missingImports.join(", "),
+    });
+  }
+
+  if (staleImports.length > 0) {
+    warnings.push({
+      file: runtimeTarget,
+      reason: "stale-font-import",
+      className: null,
+      message:
+        "Found @fontsource imports not referenced by emily.config.json: " + staleImports.join(", "),
+    });
+  }
+
+  return warnings;
 }
 
 const INTERACTIVE_TAGS = new Set([
@@ -381,6 +587,7 @@ function doctor() {
   });
 
   warnings.push(...createContrastWarnings(config));
+  warnings.push(...createFontRuntimeWarnings(config));
 
   if (issues.length === 0 && warnings.length === 0) {
     console.log("\u2713 EmilyCSS doctor found no class issues");
@@ -428,4 +635,5 @@ module.exports = {
   hexToRelativeLuminance,
   contrastRatio,
   createContrastWarnings,
+  createFontRuntimeWarnings,
 };
