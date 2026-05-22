@@ -355,14 +355,14 @@ function detectProject() {
     return {
       name: "Nuxt",
       sourceDir: ".",
-      outputPath: "public/emily.min.css",
+      outputPath: "public/emily.css",
       sourceGlobs: [
         "./components/**/*.{vue,js,ts}",
         "./pages/**/*.vue",
         "./layouts/**/*.vue",
         "./app.vue",
       ],
-      linkHint: '<link rel="stylesheet" href="/emily.min.css">',
+      linkHint: '<link rel="stylesheet" href="/emily.css">',
     };
   }
 
@@ -370,14 +370,14 @@ function detectProject() {
     return {
       name: "Next.js",
       sourceDir: ".",
-      outputPath: "public/emily.min.css",
+      outputPath: "public/emily.css",
       sourceGlobs: [
         "./app/**/*.{js,jsx,ts,tsx}",
         "./pages/**/*.{js,jsx,ts,tsx}",
         "./components/**/*.{js,jsx,ts,tsx}",
         "./src/**/*.{js,jsx,ts,tsx}",
       ],
-      linkHint: '<link rel="stylesheet" href="/emily.min.css">',
+      linkHint: '<link rel="stylesheet" href="/emily.css">',
     };
   }
 
@@ -386,15 +386,15 @@ function detectProject() {
       name: "React",
       sourceDir: "./src",
       outputPath: hasFile("public")
-        ? "public/emily.min.css"
-        : "dist/emily.min.css",
+        ? "public/emily.css"
+        : "dist/emily.css",
       sourceGlobs: [
         "./src/**/*.{js,jsx,ts,tsx}",
         "./components/**/*.{js,jsx,ts,tsx}",
       ],
       linkHint: hasFile("public")
-        ? '<link rel="stylesheet" href="/emily.min.css">'
-        : '<link rel="stylesheet" href="./dist/emily.min.css">',
+        ? '<link rel="stylesheet" href="/emily.css">'
+        : '<link rel="stylesheet" href="./dist/emily.css">',
     };
   }
 
@@ -406,9 +406,9 @@ function detectProject() {
     return {
       name: "Vue/Vite",
       sourceDir: "./src",
-      outputPath: "public/emily.min.css",
+      outputPath: "public/emily.css",
       sourceGlobs: ["./src/**/*.{vue,js,ts}"],
-      linkHint: '<link rel="stylesheet" href="/emily.min.css">',
+      linkHint: '<link rel="stylesheet" href="/emily.css">',
     };
   }
 
@@ -416,9 +416,9 @@ function detectProject() {
     return {
       name: "Astro",
       sourceDir: "./src",
-      outputPath: "public/emily.min.css",
+      outputPath: "public/emily.css",
       sourceGlobs: ["./src/**/*.{astro,html,js,ts,vue,jsx,tsx,svelte}"],
-      linkHint: '<link rel="stylesheet" href="/emily.min.css">',
+      linkHint: '<link rel="stylesheet" href="/emily.css">',
     };
   }
 
@@ -434,25 +434,25 @@ function detectProject() {
     return {
       name: "Drupal",
       sourceDir: ".",
-      outputPath: "dist/emily.min.css",
+      outputPath: "dist/emily.css",
       sourceGlobs: [
         "./web/themes/custom/**/*.{twig,js,ts}",
         "./templates/**/*.html.twig",
         "./components/**/*.twig",
         "./**/*.theme",
       ],
-      linkHint: "Attach dist/emily.min.css through your theme library YAML.",
+      linkHint: "Attach dist/emily.css through your theme library YAML.",
     };
   }
 
   return {
     name: "Static/Generic",
     sourceDir: ".",
-    outputPath: "dist/emily.min.css",
+    outputPath: "dist/emily.css",
     sourceGlobs: [
       "./**/*.{html,htm,twig,njk,liquid,hbs,php,astro,svelte,vue,blade.php,jinja,jinja2,j2}",
     ],
-    linkHint: '<link rel="stylesheet" href="./dist/emily.min.css">',
+    linkHint: '<link rel="stylesheet" href="./dist/emily.css">',
   };
 }
 
@@ -485,7 +485,7 @@ function createDefaultConfig({
 
     output: {
       css: detectedProject.outputPath,
-      fullCss: "dist/emily.css",
+      fullCss: detectedProject.outputPath,
     },
 
     manifest: true,

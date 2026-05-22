@@ -7,7 +7,7 @@ Explain how `emily.config.json` controls tokens, output files, purge settings, a
 ```json
 {
   "output": {
-    "css": "dist/emily.min.css",
+    "css": "dist/emily.css",
     "fullCss": "dist/emily.css"
   },
   "manifest": true,

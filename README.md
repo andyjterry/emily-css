@@ -9,7 +9,7 @@ emilyCSS lets you define design tokens in `emily.config.json` and generate stati
 ## Why teams use it
 
 - Token-first utility generation from your own colours, spacing, typography, and motion settings
-- Framework-agnostic output (`dist/emily.css` for dev and `dist/emily.min.css` for production)
+- Framework-agnostic output (single project-specific `emily.css` path by default)
 - Accessibility-focused utility coverage (focus rings, visually-hidden helpers, motion-aware variants)
 - Broader Tailwind-style compatibility coverage for everyday migration classes
 - Tooling support with manifest and IntelliSense JSON generation
@@ -30,10 +30,10 @@ Dev: link full CSS for fastest feedback.
 <link rel="stylesheet" href="./dist/emily.css">
 ```
 
-Production: run a build and link minified CSS:
+Production: run a build. By default it overwrites the same `emily.css` path with purged/minified CSS:
 
 ```html
-<link rel="stylesheet" href="./dist/emily.min.css">
+<link rel="stylesheet" href="./dist/emily.css">
 ```
 
 ## Core commands
@@ -71,10 +71,10 @@ npm run emily:help
 
 ## Doctor and migrate
 
-- `watch` (default) is development mode and regenerates only full CSS (`dist/emily.css`) when `emily.config.json` changes.
-- `build` generates production CSS (`dist/emily.min.css`) and removes the full CSS file unless `--keep-full` is passed.
+- `watch` (default) is development mode and regenerates full CSS at your configured `output.fullCss` path.
+- `build` generates production CSS (purged + minified) at your configured `output.css` path.
+- New `init` projects default to a single stable filename by setting both paths to the same project-specific `emily.css` location.
 - `watch --prod` is available when you explicitly want purge + minify on every source-file change.
-- If you want one stable filename in all environments, set both `output.fullCss` and `output.css` to the same file (for example `dist/emily.css`). Then always link that single file.
 
 - `doctor` checks for unknown EmilyCSS classes and variants.
 - `doctor` now also reports non-failing accessibility warnings (for example obvious focus-removal or same-token text/background patterns).

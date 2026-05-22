@@ -5,7 +5,7 @@ Track framework-specific integration notes while EmilyCSS stays framework-agnost
 
 ## Minimal Example
 ```txt
-Use generated CSS from dist/emily.min.css in any stack that serves static CSS.
+Use generated CSS from your configured emily.css output path in any stack that serves static CSS.
 ```
 
 ## Status
