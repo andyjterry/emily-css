@@ -4,6 +4,14 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.17 — May 2026
+
+**Improved init runtime wiring: EmilyCSS now updates Nuxt font/style imports to remove stale \emily.min.css` entries and automatically align stylesheet paths with your configured output (e.g. `public/emily.css` -> `/emily.css`)**
+
+### Added
+- Improved init runtime wiring: EmilyCSS now updates Nuxt font/style imports to remove stale \emily.min.css` entries and automatically align stylesheet paths with your configured output (e.g. `public/emily.css` -> `/emily.css`)
+
+---
 ## v1.2.16 — May 2026
 
 **emily-css uninstall` with optional keep/dry-run flags to remove Emily config, generated assets, package scripts, and selected @fontsource references for clean project rollback.`**
