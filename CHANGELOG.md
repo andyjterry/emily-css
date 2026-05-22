@@ -4,6 +4,14 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.18 — May 2026
+
+****
+
+### Fixed
+- fix(init): remove stale watcher prompt and correct Nuxt runtime CSS wiring to app.head.link with emily.min.css cleanup
+
+---
 ## v1.2.17 — May 2026
 
 **Improved init runtime wiring: EmilyCSS now updates Nuxt font/style imports to remove stale \emily.min.css` entries and automatically align stylesheet paths with your configured output (e.g. `public/emily.css` -> `/emily.css`)**
