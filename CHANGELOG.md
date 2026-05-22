@@ -6,6 +6,14 @@ All notable changes to `emily-css` are documented here.
 
 ## v1.2.13 — May 2026
 
+**Improve init font DX with optional non-system font package installation and add figtree preset support.**
+
+### Added
+- feat(init): add optional @fontsource install flow and figtree font support
+
+---
+## v1.2.13 — May 2026
+
 **feat(init): optional @fontsource install flow + figtree font support**
 
 ### Added
