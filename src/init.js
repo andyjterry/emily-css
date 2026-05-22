@@ -496,8 +496,42 @@ function getFontImportGuidance(projectName, fontImportPaths) {
   return lines;
 }
 
-function patchNuxtConfigCssImports(content, fontImportPaths) {
+function getNuxtStylesheetHrefFromOutputPath(outputPath) {
+  if (!outputPath || typeof outputPath !== "string") {
+    return "/emily.css";
+  }
+
+  const normalised = outputPath.replace(/\\/g, "/").replace(/^\.\//, "");
+
+  if (normalised.startsWith("public/")) {
+    return "/" + normalised.slice("public/".length);
+  }
+
+  if (normalised.startsWith("/")) {
+    return normalised;
+  }
+
+  return "/" + normalised;
+}
+
+function patchNuxtConfigCssImports(content, fontImportPaths, stylesheetHref = null) {
   if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+    if (!stylesheetHref) {
+      return { changed: false, content };
+    }
+  }
+
+  const runtimeCssEntries = [];
+  if (Array.isArray(fontImportPaths)) {
+    fontImportPaths.forEach((fontPath) => {
+      if (fontPath && !runtimeCssEntries.includes(fontPath)) runtimeCssEntries.push(fontPath);
+    });
+  }
+  if (stylesheetHref && !runtimeCssEntries.includes(stylesheetHref)) {
+    runtimeCssEntries.push(stylesheetHref);
+  }
+
+  if (runtimeCssEntries.length === 0) {
     return { changed: false, content };
   }
 
@@ -514,9 +548,10 @@ function patchNuxtConfigCssImports(content, fontImportPaths) {
     const keptLines = body
       .split("\n")
       .filter((line) => !line.includes("@fontsource/"))
+      .filter((line) => !/emily(?:\.min)?\.css/i.test(line))
       .filter((line) => line.trim() !== "");
-    const fontLines = fontImportPaths.map((fontPath) => `${itemIndent}'${fontPath}',`);
-    const rebuiltBody = `\n${[...keptLines, ...fontLines].join("\n")}\n`;
+    const runtimeCssLines = runtimeCssEntries.map((runtimePath) => `${itemIndent}'${runtimePath}',`);
+    const rebuiltBody = `\n${[...keptLines, ...runtimeCssLines].join("\n")}\n`;
     const replacement = `${open}${rebuiltBody}${close}`;
     const nextContent = content.replace(cssRegex, replacement);
     return { changed: nextContent !== content, content: nextContent };
@@ -529,9 +564,27 @@ function patchNuxtConfigCssImports(content, fontImportPaths) {
 
   const insertIndex = configOpenIndex + "defineNuxtConfig({".length;
   const cssBlock =
-    `\n  css: [\n${fontImportPaths.map((fontPath) => `    '${fontPath}',`).join("\n")}\n  ],\n`;
+    `\n  css: [\n${runtimeCssEntries.map((runtimePath) => `    '${runtimePath}',`).join("\n")}\n  ],\n`;
   const nextContent = content.slice(0, insertIndex) + cssBlock + content.slice(insertIndex);
   return { changed: true, content: nextContent };
+}
+
+function patchNuxtHeadStylesheetHref(content, stylesheetHref) {
+  if (!stylesheetHref || typeof stylesheetHref !== "string") {
+    return { changed: false, content };
+  }
+
+  const nextContent = content
+    .replace(
+      /(href\s*:\s*["'])[^"']*emily(?:\.min)?\.css(["'])/gi,
+      `$1${stylesheetHref}$2`,
+    )
+    .replace(
+      /(<link[^>]*href=["'])[^"']*emily(?:\.min)?\.css(["'][^>]*>)/gi,
+      `$1${stylesheetHref}$2`,
+    );
+
+  return { changed: nextContent !== content, content: nextContent };
 }
 
 function patchJsEntryWithImports(content, fontImportPaths) {
@@ -578,7 +631,7 @@ function patchAstroWithImports(content, fontImportPaths) {
   return { changed: true, content: nextContent };
 }
 
-function applyFontRuntimeWiring(projectName, fontImportPaths) {
+function applyFontRuntimeWiring(projectName, fontImportPaths, outputCssPath = null) {
   const result = {
     changed: false,
     applied: false,
@@ -598,14 +651,17 @@ function applyFontRuntimeWiring(projectName, fontImportPaths) {
       return result;
     }
     const original = fs.readFileSync(path.join(process.cwd(), target), "utf8");
-    const patched = patchNuxtConfigCssImports(original, fontImportPaths);
-    if (patched.changed) {
-      fs.writeFileSync(path.join(process.cwd(), target), patched.content);
+    const nuxtStylesheetHref = getNuxtStylesheetHrefFromOutputPath(outputCssPath || "public/emily.css");
+    const patchedCss = patchNuxtConfigCssImports(original, fontImportPaths, nuxtStylesheetHref);
+    const patchedHead = patchNuxtHeadStylesheetHref(patchedCss.content, nuxtStylesheetHref);
+    const changedContent = patchedHead.content;
+    if (patchedCss.changed || patchedHead.changed) {
+      fs.writeFileSync(path.join(process.cwd(), target), changedContent);
       result.changed = true;
     }
     result.applied = true;
     result.target = target;
-    result.message = patched.changed
+    result.message = result.changed
       ? `Updated ${target} css imports.`
       : `${target} already had matching font imports.`;
     return result;
@@ -1338,27 +1394,6 @@ async function init(options = {}) {
       }
     }
 
-    if (selectedFontImportPaths.length > 0 && canAutoWireFontRuntime(detectedProject.name)) {
-      let shouldWireFontRuntime = false;
-      if (initOptions.yes) {
-        shouldWireFontRuntime = true;
-      } else {
-        shouldWireFontRuntime = await new Confirm({
-          name: "wireFontImports",
-          message: "Auto-wire selected font imports into your " + detectedProject.name + " entry?",
-          initial: true,
-        }).run();
-      }
-
-      if (shouldWireFontRuntime) {
-        fontRuntimeWiringAttempted = true;
-        fontRuntimeWiringResult = applyFontRuntimeWiring(
-          detectedProject.name,
-          selectedFontImportPaths,
-        );
-      }
-    }
-
     const baseFontSize = await new Select({
       name: "baseFontSize",
       message: "Base font size (sets html font-size, scales all rem values)",
@@ -1444,6 +1479,31 @@ async function init(options = {}) {
 
     const configPath = path.join(process.cwd(), "emily.config.json");
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+
+    if (selectedFontImportPaths.length > 0 && canAutoWireFontRuntime(detectedProject.name)) {
+      let shouldWireFontRuntime = false;
+      if (initOptions.yes) {
+        shouldWireFontRuntime = true;
+      } else {
+        shouldWireFontRuntime = await new Confirm({
+          name: "wireFontImports",
+          message:
+            "Auto-wire selected font imports and Emily stylesheet path into your " +
+            detectedProject.name +
+            " entry?",
+          initial: true,
+        }).run();
+      }
+
+      if (shouldWireFontRuntime) {
+        fontRuntimeWiringAttempted = true;
+        fontRuntimeWiringResult = applyFontRuntimeWiring(
+          detectedProject.name,
+          selectedFontImportPaths,
+          config.output && config.output.css ? config.output.css : detectedProject.outputPath,
+        );
+      }
+    }
 
     console.log("");
 
@@ -1633,7 +1693,9 @@ module.exports = {
   formatInstallCommand,
   getFontImportPaths,
   getFontImportGuidance,
+  getNuxtStylesheetHrefFromOutputPath,
   patchNuxtConfigCssImports,
+  patchNuxtHeadStylesheetHref,
   patchJsEntryWithImports,
   patchAstroWithImports,
   applyFontRuntimeWiring,

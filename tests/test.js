@@ -2291,9 +2291,11 @@ const {
   getSelectedFontPackages,
   getFontImportPaths,
   getFontImportGuidance,
+  getNuxtStylesheetHrefFromOutputPath,
   formatInstallCommand,
   getInstallCommand,
   patchNuxtConfigCssImports,
+  patchNuxtHeadStylesheetHref,
   patchJsEntryWithImports,
 } = require('../src/init.js');
 const {
@@ -2361,6 +2363,11 @@ test('getFontImportGuidance returns Nuxt css-array guidance', () => {
   assert.ok(guidance.some((line) => line.includes('@fontsource/inter/400.css')));
 });
 
+test('getNuxtStylesheetHrefFromOutputPath maps public output to root href', () => {
+  assert.strictEqual(getNuxtStylesheetHrefFromOutputPath('public/emily.css'), '/emily.css');
+  assert.strictEqual(getNuxtStylesheetHrefFromOutputPath('dist/emily.css'), '/dist/emily.css');
+});
+
 test('patchNuxtConfigCssImports replaces stale @fontsource imports', () => {
   const input = [
     'export default defineNuxtConfig({',
@@ -2377,6 +2384,48 @@ test('patchNuxtConfigCssImports replaces stale @fontsource imports', () => {
   assert.ok(result.content.includes("'@fontsource/figtree/400.css'"));
   assert.ok(!result.content.includes('@fontsource/inter/400.css'));
   assert.ok(!result.content.includes('@fontsource/lexend/400.css'));
+});
+
+test('patchNuxtConfigCssImports replaces stale emily.min.css with configured stylesheet href', () => {
+  const input = [
+    'export default defineNuxtConfig({',
+    '  css: [',
+    "    'emily.min.css',",
+    "    '@fontsource/inter/400.css',",
+    '  ],',
+    '})',
+    '',
+  ].join('\n');
+
+  const result = patchNuxtConfigCssImports(
+    input,
+    ['@fontsource/figtree/400.css'],
+    '/emily.css',
+  );
+  assert.strictEqual(result.changed, true);
+  assert.ok(result.content.includes("'@fontsource/figtree/400.css'"));
+  assert.ok(result.content.includes("'/emily.css'"));
+  assert.ok(!result.content.includes('emily.min.css'));
+});
+
+test('patchNuxtHeadStylesheetHref rewrites stale emily.min.css href values', () => {
+  const input = [
+    'export default defineNuxtConfig({',
+    '  app: {',
+    '    head: {',
+    '      link: [',
+    "        { rel: 'stylesheet', href: 'emily.min.css' },",
+    '      ]',
+    '    }',
+    '  }',
+    '})',
+    '',
+  ].join('\n');
+
+  const result = patchNuxtHeadStylesheetHref(input, '/emily.css');
+  assert.strictEqual(result.changed, true);
+  assert.ok(result.content.includes("href: '/emily.css'"));
+  assert.ok(!result.content.includes('emily.min.css'));
 });
 
 test('patchJsEntryWithImports prepends only missing imports', () => {
