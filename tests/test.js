@@ -2301,6 +2301,7 @@ const {
 const {
   parseUninstallOptions,
   removeEmilyScripts,
+  cleanupNuxtRuntimeWiring,
 } = require('../src/uninstall.js');
 
 test('parseInitOptions supports --yes, --skip-font-install, and --fresh', () => {
@@ -2443,6 +2444,26 @@ test('patchNuxtHeadStylesheetHref adds stylesheet link when head.link exists but
   assert.ok(result.content.includes('/favicon.svg'));
 });
 
+test('patchNuxtHeadStylesheetHref does not duplicate an existing emily stylesheet link', () => {
+  const input = [
+    'export default defineNuxtConfig({',
+    '  app: {',
+    '    head: {',
+    '      link: [',
+    "        { rel: 'stylesheet', href: '/emily.css' },",
+    '      ]',
+    '    }',
+    '  }',
+    '})',
+    '',
+  ].join('\n');
+
+  const result = patchNuxtHeadStylesheetHref(input, '/emily.css');
+  assert.strictEqual(result.changed, false);
+  const matches = result.content.match(/href:\s*'\/emily\.css'/g) || [];
+  assert.strictEqual(matches.length, 1, 'Expected only one /emily.css link entry');
+});
+
 test('patchJsEntryWithImports prepends only missing imports', () => {
   const input = [
     'import "./style.css";',
@@ -2533,6 +2554,51 @@ test('uninstall removes emily config, generated css, and emily scripts', () => {
     assert.ok(!nextPackageJson.dependencies['@fontsource/lexend'], 'Expected selected @fontsource package reference removed');
     assert.ok(result.stdout.includes('EmilyCSS cleanup complete'), 'Expected successful cleanup output');
   } finally {
+    removeTempProject(tmpDir);
+  }
+});
+
+test('cleanupNuxtRuntimeWiring removes selected font imports and emily stylesheet link', () => {
+  const tmpDir = createTempProject();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(tmpDir);
+    fs.writeFileSync(
+      path.join(tmpDir, 'nuxt.config.ts'),
+      [
+        'export default defineNuxtConfig({',
+        '  css: [',
+        "    '@fontsource/figtree/400.css',",
+        "    '@fontsource/figtree/500.css',",
+        '  ],',
+        '  app: {',
+        '    head: {',
+        '      link: [',
+        "        { rel: 'stylesheet', href: '/emily.css' },",
+        "        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },",
+        '      ]',
+        '    }',
+        '  }',
+        '})',
+        '',
+      ].join('\n'),
+    );
+
+    const config = {
+      fontFamily: { heading: 'figtree', body: 'figtree' },
+    };
+
+    const result = cleanupNuxtRuntimeWiring(config, false);
+    assert.strictEqual(result.changed, true);
+
+    const updated = fs.readFileSync(path.join(tmpDir, 'nuxt.config.ts'), 'utf8');
+    assert.ok(!updated.includes('@fontsource/figtree/400.css'));
+    assert.ok(!updated.includes('@fontsource/figtree/500.css'));
+    assert.ok(!updated.includes("href: '/emily.css'"));
+    assert.ok(updated.includes('/favicon.svg'), 'Expected non-Emily link entries to remain');
+  } finally {
+    process.chdir(originalCwd);
     removeTempProject(tmpDir);
   }
 });

@@ -14,6 +14,41 @@ const FONT_PACKAGE_BY_KEY = {
   atkinson: '@fontsource/atkinson-hyperlegible',
 };
 
+const FONT_IMPORTS_BY_KEY = {
+  inter: [
+    '@fontsource/inter/400.css',
+    '@fontsource/inter/500.css',
+    '@fontsource/inter/600.css',
+    '@fontsource/inter/700.css',
+  ],
+  lexend: [
+    '@fontsource/lexend/400.css',
+    '@fontsource/lexend/500.css',
+    '@fontsource/lexend/600.css',
+    '@fontsource/lexend/700.css',
+  ],
+  figtree: [
+    '@fontsource/figtree/400.css',
+    '@fontsource/figtree/500.css',
+    '@fontsource/figtree/600.css',
+    '@fontsource/figtree/700.css',
+  ],
+  'dm-sans': [
+    '@fontsource/dm-sans/400.css',
+    '@fontsource/dm-sans/500.css',
+    '@fontsource/dm-sans/700.css',
+  ],
+  nunito: [
+    '@fontsource/nunito/400.css',
+    '@fontsource/nunito/500.css',
+    '@fontsource/nunito/700.css',
+  ],
+  atkinson: [
+    '@fontsource/atkinson-hyperlegible/400.css',
+    '@fontsource/atkinson-hyperlegible/700.css',
+  ],
+};
+
 const EMILY_SCRIPT_NAMES = [
   'emily:build',
   'emily:watch',
@@ -70,6 +105,67 @@ function getSelectedFontPackages(config) {
   });
 
   return packages;
+}
+
+function getSelectedFontImports(config) {
+  const fontFamily = config && config.fontFamily;
+  if (!fontFamily || typeof fontFamily !== 'object') return [];
+
+  const keys = [fontFamily.heading, fontFamily.body]
+    .filter((value) => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const unique = Array.from(new Set(keys));
+  const imports = [];
+
+  unique.forEach((key) => {
+    const values = FONT_IMPORTS_BY_KEY[key];
+    if (!Array.isArray(values)) return;
+    values.forEach((value) => {
+      if (!imports.includes(value)) imports.push(value);
+    });
+  });
+
+  return imports;
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function cleanupNuxtRuntimeWiring(config, dryRun = false) {
+  const candidates = ['nuxt.config.ts', 'nuxt.config.js'];
+  const target = candidates.find((candidate) => fs.existsSync(path.join(process.cwd(), candidate)));
+  if (!target) return { changed: false, target: null };
+
+  const absolutePath = path.join(process.cwd(), target);
+  const original = fs.readFileSync(absolutePath, 'utf8');
+  let next = original;
+
+  const selectedImports = getSelectedFontImports(config);
+  selectedImports.forEach((fontImport) => {
+    const importRegex = new RegExp(`^.*['"]${escapeRegex(fontImport)}['"].*\\r?\\n?`, 'gm');
+    next = next.replace(importRegex, '');
+  });
+
+  // Remove Emily stylesheet entries previously injected in Nuxt config wiring.
+  next = next
+    .replace(/^.*href\s*:\s*['"][^'"]*emily(?:\.min)?\.css['"].*\r?\n?/gim, '')
+    .replace(/^.*['"][^'"]*emily(?:\.min)?\.css['"].*\r?\n?/gim, (line) => {
+      if (/href\s*:/.test(line)) return '';
+      if (/css\s*:/.test(line)) return line;
+      return '';
+    });
+
+  // Cleanup simple accidental duplicate commas introduced by line removals.
+  next = next.replace(/,\s*,/g, ',');
+
+  const changed = next !== original;
+  if (changed && !dryRun) {
+    fs.writeFileSync(absolutePath, next);
+  }
+
+  return { changed, target };
 }
 
 function collectGeneratedFileCandidates(configPath, config) {
@@ -208,6 +304,7 @@ async function uninstall(options = {}) {
     removedFiles: [],
     removedScripts: [],
     removedFontPackages: [],
+    removedRuntimeWiringTargets: [],
     warnings: [],
   };
 
@@ -238,10 +335,16 @@ async function uninstall(options = {}) {
     report.removedFontPackages = removeFontPackagesFromPackageJson(packageJson, selectedPackages);
   }
 
+  const nuxtCleanupResult = cleanupNuxtRuntimeWiring(config, uninstallOptions.dryRun);
+  if (nuxtCleanupResult.changed && nuxtCleanupResult.target) {
+    report.removedRuntimeWiringTargets.push(nuxtCleanupResult.target);
+  }
+
   const hasChanges =
     filesToRemove.length > 0 ||
     report.removedScripts.length > 0 ||
-    report.removedFontPackages.length > 0;
+    report.removedFontPackages.length > 0 ||
+    report.removedRuntimeWiringTargets.length > 0;
 
   if (!hasChanges) {
     console.log(chalk.gray('No EmilyCSS traces found to remove.'));
@@ -253,6 +356,7 @@ async function uninstall(options = {}) {
     if (filesToRemove.length > 0) summary.push(`${filesToRemove.length} file(s)`);
     if (report.removedScripts.length > 0) summary.push(`${report.removedScripts.length} script(s)`);
     if (report.removedFontPackages.length > 0) summary.push(`${report.removedFontPackages.length} font package reference(s)`);
+    if (report.removedRuntimeWiringTargets.length > 0) summary.push('runtime config cleanup');
 
     const confirmed = await new Confirm({
       name: 'confirmUninstall',
@@ -289,6 +393,13 @@ async function uninstall(options = {}) {
     console.log(chalk.gray(`  Removed font package refs: ${report.removedFontPackages.join(', ')}`));
     console.log(chalk.gray('  Run your package manager install to refresh lockfiles.'));
   }
+  if (report.removedRuntimeWiringTargets.length > 0) {
+    console.log(
+      chalk.gray(
+        `  Cleaned runtime wiring in: ${report.removedRuntimeWiringTargets.join(', ')}`,
+      ),
+    );
+  }
 
   return report;
 }
@@ -298,6 +409,7 @@ module.exports = {
   parseUninstallOptions,
   collectGeneratedFileCandidates,
   getSelectedFontPackages,
+  getSelectedFontImports,
+  cleanupNuxtRuntimeWiring,
   removeEmilyScripts,
 };
-

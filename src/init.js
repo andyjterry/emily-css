@@ -565,6 +565,15 @@ function patchNuxtHeadStylesheetHref(content, stylesheetHref) {
     return { changed: false, content };
   }
 
+  const escapedHref = stylesheetHref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const hasExactEmilyStylesheetLink = new RegExp(
+    `rel\\s*:\\s*['"]stylesheet['"][\\s\\S]*?href\\s*:\\s*['"]${escapedHref}['"]`,
+    "i",
+  ).test(content);
+  if (hasExactEmilyStylesheetLink) {
+    return { changed: false, content };
+  }
+
   const rewrittenContent = content
     .replace(
       /(href\s*:\s*["'])[^"']*emily(?:\.min)?\.css(["'])/gi,
@@ -589,7 +598,20 @@ function patchNuxtHeadStylesheetHref(content, stylesheetHref) {
     const propertyIndent = propertyIndentMatch ? propertyIndentMatch[1] : "      ";
     const itemIndent = propertyIndent + "  ";
     const linkLine = `${itemIndent}{ rel: 'stylesheet', href: '${stylesheetHref}' },`;
-    const rebuiltBody = body.trim() ? `\n${body.trimEnd()}\n${linkLine}\n` : `\n${linkLine}\n`;
+    const bodyLines = body.split("\n");
+    const normalisedBodyLines = bodyLines.map((line) => line.trimEnd());
+    for (let i = normalisedBodyLines.length - 1; i >= 0; i -= 1) {
+      const trimmed = normalisedBodyLines[i].trim();
+      if (!trimmed) continue;
+      if (!trimmed.endsWith(",")) {
+        normalisedBodyLines[i] = normalisedBodyLines[i] + ",";
+      }
+      break;
+    }
+    const rebuiltBody =
+      normalisedBodyLines.some((line) => line.trim() !== "")
+        ? `\n${normalisedBodyLines.join("\n")}\n${linkLine}\n`
+        : `\n${linkLine}\n`;
     const replacement = `${open}${rebuiltBody}${close}`;
     const nextContent = rewrittenContent.replace(linkRegex, replacement);
     return { changed: nextContent !== content, content: nextContent };
