@@ -2386,7 +2386,7 @@ test('patchNuxtConfigCssImports replaces stale @fontsource imports', () => {
   assert.ok(!result.content.includes('@fontsource/lexend/400.css'));
 });
 
-test('patchNuxtConfigCssImports replaces stale emily.min.css with configured stylesheet href', () => {
+test('patchNuxtConfigCssImports removes stale emily.min.css from css array', () => {
   const input = [
     'export default defineNuxtConfig({',
     '  css: [',
@@ -2397,14 +2397,9 @@ test('patchNuxtConfigCssImports replaces stale emily.min.css with configured sty
     '',
   ].join('\n');
 
-  const result = patchNuxtConfigCssImports(
-    input,
-    ['@fontsource/figtree/400.css'],
-    '/emily.css',
-  );
+  const result = patchNuxtConfigCssImports(input, ['@fontsource/figtree/400.css']);
   assert.strictEqual(result.changed, true);
   assert.ok(result.content.includes("'@fontsource/figtree/400.css'"));
-  assert.ok(result.content.includes("'/emily.css'"));
   assert.ok(!result.content.includes('emily.min.css'));
 });
 
@@ -2426,6 +2421,26 @@ test('patchNuxtHeadStylesheetHref rewrites stale emily.min.css href values', () 
   assert.strictEqual(result.changed, true);
   assert.ok(result.content.includes("href: '/emily.css'"));
   assert.ok(!result.content.includes('emily.min.css'));
+});
+
+test('patchNuxtHeadStylesheetHref adds stylesheet link when head.link exists but has no emily entry', () => {
+  const input = [
+    'export default defineNuxtConfig({',
+    '  app: {',
+    '    head: {',
+    '      link: [',
+    "        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },",
+    '      ]',
+    '    }',
+    '  }',
+    '})',
+    '',
+  ].join('\n');
+
+  const result = patchNuxtHeadStylesheetHref(input, '/emily.css');
+  assert.strictEqual(result.changed, true);
+  assert.ok(result.content.includes("href: '/emily.css'"));
+  assert.ok(result.content.includes('/favicon.svg'));
 });
 
 test('patchJsEntryWithImports prepends only missing imports', () => {
@@ -2462,6 +2477,14 @@ test('init source includes existing-config mode choice prompt', () => {
   assert.ok(
     initJs.includes('Existing emily.config.json detected. How do you want to continue?'),
     'Missing existing config choice prompt in init flow',
+  );
+});
+
+test('init source does not prompt to auto-start watcher at the end', () => {
+  const initJs = fs.readFileSync(path.join(__dirname, '../src/init.js'), 'utf-8');
+  assert.ok(
+    !initJs.includes('Start the file watcher now?'),
+    'Init should not prompt to auto-start watcher',
   );
 });
 

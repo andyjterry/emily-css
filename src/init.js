@@ -514,25 +514,12 @@ function getNuxtStylesheetHrefFromOutputPath(outputPath) {
   return "/" + normalised;
 }
 
-function patchNuxtConfigCssImports(content, fontImportPaths, stylesheetHref = null) {
-  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
-    if (!stylesheetHref) {
-      return { changed: false, content };
-    }
-  }
-
+function patchNuxtConfigCssImports(content, fontImportPaths) {
   const runtimeCssEntries = [];
   if (Array.isArray(fontImportPaths)) {
     fontImportPaths.forEach((fontPath) => {
       if (fontPath && !runtimeCssEntries.includes(fontPath)) runtimeCssEntries.push(fontPath);
     });
-  }
-  if (stylesheetHref && !runtimeCssEntries.includes(stylesheetHref)) {
-    runtimeCssEntries.push(stylesheetHref);
-  }
-
-  if (runtimeCssEntries.length === 0) {
-    return { changed: false, content };
   }
 
   const cssRegex = /(^\s*css\s*:\s*\[)([\s\S]*?)(^\s*\],?)/m;
@@ -562,6 +549,10 @@ function patchNuxtConfigCssImports(content, fontImportPaths, stylesheetHref = nu
     return { changed: false, content };
   }
 
+  if (runtimeCssEntries.length === 0) {
+    return { changed: false, content };
+  }
+
   const insertIndex = configOpenIndex + "defineNuxtConfig({".length;
   const cssBlock =
     `\n  css: [\n${runtimeCssEntries.map((runtimePath) => `    '${runtimePath}',`).join("\n")}\n  ],\n`;
@@ -574,7 +565,7 @@ function patchNuxtHeadStylesheetHref(content, stylesheetHref) {
     return { changed: false, content };
   }
 
-  const nextContent = content
+  const rewrittenContent = content
     .replace(
       /(href\s*:\s*["'])[^"']*emily(?:\.min)?\.css(["'])/gi,
       `$1${stylesheetHref}$2`,
@@ -584,7 +575,65 @@ function patchNuxtHeadStylesheetHref(content, stylesheetHref) {
       `$1${stylesheetHref}$2`,
     );
 
-  return { changed: nextContent !== content, content: nextContent };
+  if (rewrittenContent !== content) {
+    return { changed: true, content: rewrittenContent };
+  }
+
+  const linkRegex = /(^\s*link\s*:\s*\[)([\s\S]*?)(^\s*\],?)/m;
+  const linkMatch = rewrittenContent.match(linkRegex);
+  if (linkMatch) {
+    const open = linkMatch[1];
+    const body = linkMatch[2];
+    const close = linkMatch[3].endsWith(",") ? linkMatch[3] : `${linkMatch[3]},`;
+    const propertyIndentMatch = open.match(/^(\s*)/);
+    const propertyIndent = propertyIndentMatch ? propertyIndentMatch[1] : "      ";
+    const itemIndent = propertyIndent + "  ";
+    const linkLine = `${itemIndent}{ rel: 'stylesheet', href: '${stylesheetHref}' },`;
+    const rebuiltBody = body.trim() ? `\n${body.trimEnd()}\n${linkLine}\n` : `\n${linkLine}\n`;
+    const replacement = `${open}${rebuiltBody}${close}`;
+    const nextContent = rewrittenContent.replace(linkRegex, replacement);
+    return { changed: nextContent !== content, content: nextContent };
+  }
+
+  const headRegex = /(^\s*head\s*:\s*\{)/m;
+  const headMatch = rewrittenContent.match(headRegex);
+  if (headMatch) {
+    const line = headMatch[1];
+    const propertyIndentMatch = line.match(/^(\s*)/);
+    const propertyIndent = propertyIndentMatch ? propertyIndentMatch[1] : "    ";
+    const itemIndent = propertyIndent + "  ";
+    const linkIndent = itemIndent + "  ";
+    const linkBlock =
+      `\n${itemIndent}link: [\n${linkIndent}{ rel: 'stylesheet', href: '${stylesheetHref}' },\n${itemIndent}],`;
+    const nextContent = rewrittenContent.replace(headRegex, `${line}${linkBlock}`);
+    return { changed: nextContent !== content, content: nextContent };
+  }
+
+  const appRegex = /(^\s*app\s*:\s*\{)/m;
+  const appMatch = rewrittenContent.match(appRegex);
+  if (appMatch) {
+    const line = appMatch[1];
+    const propertyIndentMatch = line.match(/^(\s*)/);
+    const propertyIndent = propertyIndentMatch ? propertyIndentMatch[1] : "  ";
+    const headIndent = propertyIndent + "  ";
+    const linkIndent = headIndent + "  ";
+    const linkItemIndent = linkIndent + "  ";
+    const headBlock =
+      `\n${headIndent}head: {\n${linkIndent}link: [\n${linkItemIndent}{ rel: 'stylesheet', href: '${stylesheetHref}' },\n${linkIndent}],\n${headIndent}},`;
+    const nextContent = rewrittenContent.replace(appRegex, `${line}${headBlock}`);
+    return { changed: nextContent !== content, content: nextContent };
+  }
+
+  const configOpenIndex = rewrittenContent.indexOf("defineNuxtConfig({");
+  if (configOpenIndex !== -1) {
+    const insertIndex = configOpenIndex + "defineNuxtConfig({".length;
+    const appBlock =
+      `\n  app: {\n    head: {\n      link: [\n        { rel: 'stylesheet', href: '${stylesheetHref}' },\n      ],\n    },\n  },\n`;
+    const nextContent = rewrittenContent.slice(0, insertIndex) + appBlock + rewrittenContent.slice(insertIndex);
+    return { changed: nextContent !== content, content: nextContent };
+  }
+
+  return { changed: false, content: rewrittenContent };
 }
 
 function patchJsEntryWithImports(content, fontImportPaths) {
@@ -639,7 +688,8 @@ function applyFontRuntimeWiring(projectName, fontImportPaths, outputCssPath = nu
     message: "",
   };
 
-  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+  const hasFontImports = Array.isArray(fontImportPaths) && fontImportPaths.length > 0;
+  if (!hasFontImports && projectName !== "Nuxt") {
     result.message = "No font imports required.";
     return result;
   }
@@ -652,7 +702,7 @@ function applyFontRuntimeWiring(projectName, fontImportPaths, outputCssPath = nu
     }
     const original = fs.readFileSync(path.join(process.cwd(), target), "utf8");
     const nuxtStylesheetHref = getNuxtStylesheetHrefFromOutputPath(outputCssPath || "public/emily.css");
-    const patchedCss = patchNuxtConfigCssImports(original, fontImportPaths, nuxtStylesheetHref);
+    const patchedCss = patchNuxtConfigCssImports(original, fontImportPaths || []);
     const patchedHead = patchNuxtHeadStylesheetHref(patchedCss.content, nuxtStylesheetHref);
     const changedContent = patchedHead.content;
     if (patchedCss.changed || patchedHead.changed) {
@@ -662,8 +712,8 @@ function applyFontRuntimeWiring(projectName, fontImportPaths, outputCssPath = nu
     result.applied = true;
     result.target = target;
     result.message = result.changed
-      ? `Updated ${target} css imports.`
-      : `${target} already had matching font imports.`;
+      ? `Updated ${target} font imports and stylesheet link.`
+      : `${target} already had matching font imports and stylesheet link.`;
     return result;
   }
 
@@ -1480,7 +1530,10 @@ async function init(options = {}) {
     const configPath = path.join(process.cwd(), "emily.config.json");
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 
-    if (selectedFontImportPaths.length > 0 && canAutoWireFontRuntime(detectedProject.name)) {
+    if (
+      canAutoWireFontRuntime(detectedProject.name) &&
+      (selectedFontImportPaths.length > 0 || detectedProject.name === "Nuxt")
+    ) {
       let shouldWireFontRuntime = false;
       if (initOptions.yes) {
         shouldWireFontRuntime = true;
@@ -1488,7 +1541,7 @@ async function init(options = {}) {
         shouldWireFontRuntime = await new Confirm({
           name: "wireFontImports",
           message:
-            "Auto-wire selected font imports and Emily stylesheet path into your " +
+            "Auto-wire runtime CSS setup into your " +
             detectedProject.name +
             " entry?",
           initial: true,
@@ -1614,35 +1667,12 @@ async function init(options = {}) {
             ),
         );
 
-        const startWatch = await new Confirm({
-          name: "startWatch",
-          message: "Start the file watcher now?",
-          initial: true,
-        }).run();
-
-        if (startWatch) {
-          console.log(
-            chalk.cyan("\nStarting watcher. Press Ctrl+C to stop.\n"),
-          );
-
-          const watcher = crossSpawn("npx", ["emily-css", "watch"], {
-            cwd: process.cwd(),
-            stdio: "inherit",
-            shell: process.platform === "win32",
-          });
-
-          watcher.on("close", function (c) {
-            process.exit(c || 0);
-          });
-        } else {
-          console.log(
-            chalk.gray(
-              "\nRun the watcher any time with: npm run emily:watch\n",
-            ),
-          );
-          process.exit(0);
-        }
-
+        console.log(
+          chalk.gray(
+            "\nInit complete. Use your framework dev server for HMR; run Emily commands manually when needed.\n",
+          ),
+        );
+        process.exit(0);
         return;
       }
 
