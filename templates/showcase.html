@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EmilyUI Showcase</title>
-  <link rel="stylesheet" href="../dist/emily.min.css">
+  <link rel="stylesheet" href="../dist/emily.css">
 <style>
   html {
     scroll-behavior: smooth;
@@ -810,7 +810,7 @@
             <span class="code-dot code-dot-green"></span>
             <span class="code-filename">index.html</span>
           </div>
-          <pre><code><span class="token-tag">&lt;link</span> <span class="token-attr">rel</span><span class="token-operator">=</span><span class="token-string">"stylesheet"</span> <span class="token-attr">href</span><span class="token-operator">=</span><span class="token-string">"./dist/emily.min.css"</span><span class="token-tag">&gt;</span></code></pre>
+          <pre><code><span class="token-tag">&lt;link</span> <span class="token-attr">rel</span><span class="token-operator">=</span><span class="token-string">"stylesheet"</span> <span class="token-attr">href</span><span class="token-operator">=</span><span class="token-string">"./dist/emily.css"</span><span class="token-tag">&gt;</span></code></pre>
         </div>
 
       </div>
@@ -822,30 +822,30 @@
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="border border-neutral-20 rounded-md p-4">
-          <p class="font-bold">dist/emily.min.css</p>
-          <p class="text-sm text-neutral-70">Production-ready CSS. This is the file you link to in your project.</p>
+          <p class="font-bold">dist/emily.css</p>
+          <p class="text-sm text-neutral-70">Single output path. Dev writes full CSS; build overwrites with purged + minified CSS.</p>
         </div>
 
         <div class="border border-neutral-20 rounded-md p-4">
-          <p class="font-bold">dist/emily.css</p>
-          <p class="text-sm text-neutral-70">Temporary local framework source. Watch keeps it available when needed.</p>
+          <p class="font-bold">emily-css watch</p>
+          <p class="text-sm text-neutral-70">Development mode: regenerates full CSS quickly on config changes.</p>
         </div>
 
         <div class="border border-neutral-20 rounded-md p-4">
           <p class="font-bold">emily-css build</p>
-          <p class="text-sm text-neutral-70">Outputs dist/emily.min.css and removes dist/emily.css by default.</p>
+          <p class="text-sm text-neutral-70">Production mode: purges unused classes, minifies output, and writes dist/emily.css.</p>
         </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <div class="border border-neutral-20 rounded-md p-4">
           <p class="font-bold">Development</p>
-          <p class="text-sm text-neutral-70">Run npm run emily:watch. It keeps a full local emily.css available when needed and regenerates emily.min.css as classes change.</p>
+          <p class="text-sm text-neutral-70">Run npm run emily:watch. It keeps dist/emily.css in full-framework form for fast local iteration.</p>
         </div>
 
         <div class="border border-neutral-20 rounded-md p-4">
           <p class="font-bold">Production</p>
-          <p class="text-sm text-neutral-70">Run npm run emily:build. Production should only ship dist/emily.min.css.</p>
+          <p class="text-sm text-neutral-70">Run npm run emily:build. It overwrites dist/emily.css with a purged + minified production file.</p>
         </div>
       </div>
     </section>

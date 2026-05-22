@@ -10,6 +10,10 @@ const usageText = `
 
   Usage:
     emily-css init        Set up a new project
+      --fresh             Ignore existing emily.config.json values
+      --use-existing      Use existing emily.config.json values as defaults
+      --yes, -y           Auto-accept recommended init prompts where possible
+      --skip-font-install Skip optional @fontsource package install prompt
     emily-css build       Generate production CSS to the configured output path
       --profile           Print coarse build timing information
     emily-css watch       Dev mode: rebuild full CSS on config changes
@@ -26,7 +30,8 @@ const usageText = `
 `;
 
 if (command === "init") {
-  require("../src/init.js");
+  const { init, parseInitOptions } = require("../src/init.js");
+  init(parseInitOptions(process.argv.slice(3)));
 } else if (command === "build") {
   const { build } = require("../src/index.js");
   build({
@@ -72,6 +77,10 @@ if (command === "init") {
   
   Commands:
     emily-css init        Set up a new project (interactive wizard)
+      --fresh             Ignore existing emily.config.json values
+      --use-existing      Use existing emily.config.json values as defaults
+      --yes, -y           Auto-accept recommended init prompts where possible
+      --skip-font-install Skip optional @fontsource package install prompt
     emily-css build       Generate production CSS to the configured output path
       --profile           Print coarse build timing information
     emily-css watch       Dev mode: watch config and rebuild full CSS

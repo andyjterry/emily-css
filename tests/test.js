@@ -833,17 +833,9 @@ test('no @import for any font preset', () => {
 
 section('12. Build Output (integration)');
 
-
-
-const builtCss = fs.existsSync(path.join(__dirname, '../dist/emily.css'))
-  ? fs.readFileSync(path.join(__dirname, '../dist/emily.css'), 'utf8')
-  : null;
+const builtCss = getGeneratedFrameworkCss();
 
 function requireBuild(name, fn) {
-  if (!builtCss) {
-    console.log(`  ⚠  ${name} (skipped — run npm run build first)`);
-    return;
-  }
   test(name, fn);
 }
 
@@ -1466,9 +1458,9 @@ test('backgroundUtilities includes background origin utilities', () => {
 
 test('backgroundUtilities includes gradient direction utilities', () => {
   const css = backgroundUtilities();
-  assert.ok(css.includes('.bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }'), 'Missing .bg-gradient-to-r');
-  assert.ok(css.includes('.bg-gradient-to-b { background-image: linear-gradient(to bottom, var(--tw-gradient-stops)); }'), 'Missing .bg-gradient-to-b');
-  assert.ok(css.includes('.bg-gradient-to-tl { background-image: linear-gradient(to top left, var(--tw-gradient-stops)); }'), 'Missing .bg-gradient-to-tl');
+  assert.ok(css.includes('.bg-gradient-to-r { background-image: linear-gradient(to right, var(--emily-gradient-stops)); }'), 'Missing .bg-gradient-to-r');
+  assert.ok(css.includes('.bg-gradient-to-b { background-image: linear-gradient(to bottom, var(--emily-gradient-stops)); }'), 'Missing .bg-gradient-to-b');
+  assert.ok(css.includes('.bg-gradient-to-tl { background-image: linear-gradient(to top left, var(--emily-gradient-stops)); }'), 'Missing .bg-gradient-to-tl');
 });
 
 // --- CSS Filters ---
@@ -2261,13 +2253,13 @@ test('showcase template exists locally', () => {
   assert.ok(fs.existsSync(showcasePath), 'Missing templates/showcase.html');
 });
 
-test('showcase template links to emily.min.css', () => {
+test('showcase template links to emily.css', () => {
   const showcasePath = path.join(__dirname, '../templates/showcase.html');
   const html = fs.readFileSync(showcasePath, 'utf8');
 
   assert.ok(
-    html.includes('emily.min.css'),
-    'showcase.html should reference emily.min.css',
+    html.includes('emily.css'),
+    'showcase.html should reference emily.css',
   );
 });
 
@@ -2291,6 +2283,59 @@ test('missing emily.config.json gives useful build error', () => {
   } finally {
     removeTempProject(tmpDir);
   }
+});
+
+const {
+  parseInitOptions,
+  getSelectedFontPackages,
+  getFontImportPaths,
+  getFontImportGuidance,
+  formatInstallCommand,
+  getInstallCommand,
+} = require('../src/init.js');
+
+test('parseInitOptions supports --yes, --skip-font-install, and --fresh', () => {
+  const opts = parseInitOptions(['--yes', '--skip-font-install', '--fresh']);
+  assert.strictEqual(opts.yes, true);
+  assert.strictEqual(opts.skipFontInstall, true);
+  assert.strictEqual(opts.fresh, true);
+});
+
+test('getSelectedFontPackages returns @fontsource packages for non-system fonts', () => {
+  const packages = getSelectedFontPackages(['system', 'figtree', 'inter']);
+  assert.ok(packages.includes('@fontsource/figtree'));
+  assert.ok(packages.includes('@fontsource/inter'));
+  assert.ok(!packages.includes('system'));
+});
+
+test('getFontImportPaths includes figtree weight imports', () => {
+  const imports = getFontImportPaths(['figtree']);
+  assert.ok(imports.includes('@fontsource/figtree/400.css'));
+  assert.ok(imports.includes('@fontsource/figtree/700.css'));
+});
+
+test('getFontImportGuidance returns Nuxt css-array guidance', () => {
+  const guidance = getFontImportGuidance('Nuxt', ['@fontsource/inter/400.css']);
+  assert.ok(guidance.some((line) => line.includes('nuxt.config')));
+  assert.ok(guidance.some((line) => line.includes('@fontsource/inter/400.css')));
+});
+
+test('getInstallCommand and formatInstallCommand support pnpm', () => {
+  const cmd = getInstallCommand('pnpm', ['@fontsource/inter']);
+  assert.strictEqual(cmd.command, 'pnpm');
+  assert.deepStrictEqual(cmd.args, ['add', '@fontsource/inter']);
+  assert.strictEqual(
+    formatInstallCommand('pnpm', ['@fontsource/inter']),
+    'pnpm add @fontsource/inter',
+  );
+});
+
+test('init source includes existing-config mode choice prompt', () => {
+  const initJs = fs.readFileSync(path.join(__dirname, '../src/init.js'), 'utf-8');
+  assert.ok(
+    initJs.includes('Existing emily.config.json detected. How do you want to continue?'),
+    'Missing existing config choice prompt in init flow',
+  );
 });
 
 test('purgeCSS uses isolated temp sourceGlobs for used classes', () => {

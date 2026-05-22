@@ -23,7 +23,7 @@ function getFullCssPath(config) {
 }
 
 function getProductionCssPath(config) {
-  return path.join(process.cwd(), config.output?.css || 'dist/emily.min.css');
+  return path.join(process.cwd(), config.output?.css || 'dist/emily.css');
 }
 
 function getManifestSettings(config) {

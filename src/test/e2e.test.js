@@ -7,7 +7,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const TOTAL_RUNS = 60;
-const FONT_KEYS = ['system', 'inter', 'lexend', 'georgia', 'dm-sans', 'nunito', 'atkinson', 'mono'];
+const FONT_KEYS = ['system', 'inter', 'lexend', 'figtree', 'georgia', 'dm-sans', 'nunito', 'atkinson', 'mono'];
 const BUILD_MODULE_PATH = path.resolve(__dirname, '../index.js');
 
 function readBaseConfig() {
@@ -52,7 +52,7 @@ function ensureBaselineShape(config) {
   }
 
   config.output = {
-    css: 'dist/emily.min.css',
+    css: 'dist/emily.css',
     fullCss: 'dist/emily.css',
   };
   return config;

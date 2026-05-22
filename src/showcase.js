@@ -26,8 +26,8 @@ const MIME = {
 
 const configPath = path.join(ROOT, "emily.config.json");
 
-let cssPath = path.join(ROOT, "dist/emily.min.css");
-let cssDisplayPath = "dist/emily.min.css";
+let cssPath = path.join(ROOT, "dist/emily.css");
+let cssDisplayPath = "dist/emily.css";
 
 if (fs.existsSync(configPath)) {
   try {

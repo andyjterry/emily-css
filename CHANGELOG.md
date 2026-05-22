@@ -4,6 +4,22 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.14 — May 2026
+
+**Improve init resilience and automation for fonts and existing configs**
+
+### Added
+- `init` now supports `--fresh`, `--use-existing`, `--skip-font-install`, and `--yes` options.
+- `init` now provides framework-specific `@fontsource` import guidance in setup output.
+
+### Changed
+- When an existing `emily.config.json` is detected, `init` now asks whether to reuse existing values or start fresh.
+- Optional font package install now skips prompts when required `@fontsource/*` packages are already installed.
+- Updated showcase template default CSS reference to `emily.css`.
+- Updated tests/docs to align with single-file output workflow and new init behavior.
+
+---
+
 ## v1.2.13 — May 2026
 
 **Improve init font DX with optional non-system font package installation and add figtree preset support.**

@@ -154,7 +154,7 @@ function printSummary({ currentClasses, result, added, removed }) {
 
   const outputPath = result.outputPath
     ? path.relative(process.cwd(), result.outputPath)
-    : "emily.min.css";
+    : "emily.css";
 
   const time = new Date().toLocaleTimeString();
 
@@ -306,7 +306,7 @@ function runWatch(mode = "dev") {
     chalk.gray(
       "   Output:  " +
         (watchMode === "prod"
-          ? (config.output?.css || "dist/emily.min.css")
+          ? (config.output?.css || "dist/emily.css")
           : (config.output?.fullCss || "dist/emily.css")),
     ),
   );

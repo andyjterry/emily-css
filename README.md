@@ -24,6 +24,9 @@ npx emily-css build
 npx emily-css watch
 ```
 
+During `init`, if you choose non-system fonts, EmilyCSS can optionally install matching `@fontsource/*` packages for you.
+Supported non-system keys include `inter`, `lexend`, `figtree`, `dm-sans`, `nunito`, and `atkinson`.
+
 Dev: link full CSS for fastest feedback.
 
 ```html
@@ -40,6 +43,9 @@ Production: run a build. By default it overwrites the same `emily.css` path with
 
 ```bash
 npx emily-css init
+npx emily-css init --fresh
+npx emily-css init --skip-font-install
+npx emily-css init --yes
 npx emily-css build
 npx emily-css build --profile
 npx emily-css watch
@@ -75,6 +81,8 @@ npm run emily:help
 - `build` generates production CSS (purged + minified) at your configured `output.css` path.
 - New `init` projects default to a single stable filename by setting both paths to the same project-specific `emily.css` location.
 - `watch --prod` is available when you explicitly want purge + minify on every source-file change.
+- `init` now detects existing `emily.config.json` and lets you choose between reusing existing values or starting from fresh defaults.
+- `init` supports `--fresh`, `--use-existing`, `--skip-font-install`, and `--yes` for faster setup and automation.
 
 - `doctor` checks for unknown EmilyCSS classes and variants.
 - `doctor` now also reports non-failing accessibility warnings (for example obvious focus-removal or same-token text/background patterns).

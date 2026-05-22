@@ -960,7 +960,7 @@ function addDarkModeVariants(css) {
     'opacity',
     'fill',
     'stroke',
-    '--tw-ring-color',
+    '--ring-color',
     'outline-color',
   ];
 

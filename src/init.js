@@ -76,6 +76,40 @@ const FONT_PACKAGE_BY_KEY = {
 };
 
 const FONT_KEYS_WITHOUT_PACKAGE = new Set(["system", "georgia", "mono"]);
+const FONT_IMPORTS_BY_KEY = {
+  inter: [
+    "@fontsource/inter/400.css",
+    "@fontsource/inter/500.css",
+    "@fontsource/inter/600.css",
+    "@fontsource/inter/700.css",
+  ],
+  lexend: [
+    "@fontsource/lexend/400.css",
+    "@fontsource/lexend/500.css",
+    "@fontsource/lexend/600.css",
+    "@fontsource/lexend/700.css",
+  ],
+  figtree: [
+    "@fontsource/figtree/400.css",
+    "@fontsource/figtree/500.css",
+    "@fontsource/figtree/600.css",
+    "@fontsource/figtree/700.css",
+  ],
+  "dm-sans": [
+    "@fontsource/dm-sans/400.css",
+    "@fontsource/dm-sans/500.css",
+    "@fontsource/dm-sans/700.css",
+  ],
+  nunito: [
+    "@fontsource/nunito/400.css",
+    "@fontsource/nunito/500.css",
+    "@fontsource/nunito/700.css",
+  ],
+  atkinson: [
+    "@fontsource/atkinson-hyperlegible/400.css",
+    "@fontsource/atkinson-hyperlegible/700.css",
+  ],
+};
 
 // ============================================================================
 // HELPERS
@@ -382,6 +416,84 @@ function installPackages(packageManager, packages) {
       });
     });
   });
+}
+
+function parseInitOptions(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const has = function (flag) {
+    return args.includes(flag);
+  };
+
+  return {
+    yes: has("--yes") || has("-y"),
+    skipFontInstall: has("--skip-font-install"),
+    fresh: has("--fresh"),
+    useExisting: has("--use-existing"),
+  };
+}
+
+function getFontImportPaths(fontKeys) {
+  const imports = [];
+  fontKeys.forEach((key) => {
+    const values = FONT_IMPORTS_BY_KEY[key];
+    if (Array.isArray(values)) {
+      values.forEach((value) => {
+        if (!imports.includes(value)) imports.push(value);
+      });
+    }
+  });
+  return imports;
+}
+
+function getFontImportGuidance(projectName, fontImportPaths) {
+  if (!Array.isArray(fontImportPaths) || fontImportPaths.length === 0) {
+    return [];
+  }
+
+  if (projectName === "Nuxt") {
+    const lines = [];
+    lines.push("Nuxt: add these entries to nuxt.config css:");
+    lines.push("css: [");
+    fontImportPaths.forEach((fontPath) => {
+      lines.push('  "' + fontPath + '",');
+    });
+    lines.push("]");
+    return lines;
+  }
+
+  if (projectName === "Next.js") {
+    const lines = [];
+    lines.push("Next.js: import in app/layout.tsx or pages/_app.tsx:");
+    fontImportPaths.forEach((fontPath) => {
+      lines.push('import "' + fontPath + '";');
+    });
+    return lines;
+  }
+
+  if (projectName === "React" || projectName === "Vue/Vite") {
+    const lines = [];
+    lines.push("Import in your app entry (e.g. src/main.tsx or src/main.ts):");
+    fontImportPaths.forEach((fontPath) => {
+      lines.push('import "' + fontPath + '";');
+    });
+    return lines;
+  }
+
+  if (projectName === "Astro") {
+    const lines = [];
+    lines.push("Astro: import in src/layouts or a global style entry:");
+    fontImportPaths.forEach((fontPath) => {
+      lines.push('import "' + fontPath + '";');
+    });
+    return lines;
+  }
+
+  const lines = [];
+  lines.push("Import these font files in your global entry stylesheet/layout:");
+  fontImportPaths.forEach((fontPath) => {
+    lines.push('import "' + fontPath + '";');
+  });
+  return lines;
 }
 
 function addEmilyScriptsToPackageJson() {
@@ -736,7 +848,14 @@ function createDefaultConfig({
 // INIT
 // ============================================================================
 
-async function init() {
+async function init(options = {}) {
+  const initOptions = {
+    yes: options.yes === true,
+    skipFontInstall: options.skipFontInstall === true,
+    fresh: options.fresh === true,
+    useExisting: options.useExisting === true,
+  };
+
   console.log(
     chalk.bold.magenta("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"),
   );
@@ -749,12 +868,50 @@ async function init() {
     const spinner = ora("Analysing project structure...").start();
     const detectedProject = detectProject();
     spinner.succeed("Detected project: " + chalk.cyan(detectedProject.name));
-    const existingConfig = readExistingConfig();
+    const rawExistingConfig = readExistingConfig();
+    let existingConfig = rawExistingConfig;
+
+    if (rawExistingConfig) {
+      if (initOptions.fresh) {
+        existingConfig = null;
+        console.log(
+          chalk.gray("  Existing config found. Starting from fresh defaults (--fresh)."),
+        );
+      } else if (initOptions.useExisting || initOptions.yes) {
+        console.log(
+          chalk.gray("  Found existing emily.config.json. Using existing values as prompt defaults."),
+        );
+      } else {
+        const configMode = await new Select({
+          name: "configMode",
+          message: "Existing emily.config.json detected. How do you want to continue?",
+          choices: [
+            {
+              name: "use-existing",
+              message: "Use existing values as defaults (recommended)",
+            },
+            {
+              name: "start-fresh",
+              message: "Start from fresh defaults",
+            },
+          ],
+          initial: 0,
+        }).run();
+
+        if (configMode === "start-fresh") {
+          existingConfig = null;
+          console.log(chalk.gray("  Starting from fresh defaults."));
+        } else {
+          console.log(chalk.gray("  Using existing values as prompt defaults."));
+        }
+      }
+    }
+
     const existingColours = isPlainObject(existingConfig && existingConfig.colours)
       ? existingConfig.colours
       : {};
 
-    if (existingConfig) {
+    if (existingConfig && rawExistingConfig) {
       console.log(
         chalk.gray(
           "  Found existing emily.config.json. Prompts are pre-filled from current settings.",
@@ -936,32 +1093,55 @@ async function init() {
     });
 
     const selectedFontKeys = getSelectedFontKeys(headingFont, bodyFont);
+    const selectedFontImportPaths = getFontImportPaths(selectedFontKeys);
+    const selectedFontGuidanceLines = getFontImportGuidance(
+      detectedProject.name,
+      selectedFontImportPaths,
+    );
     const selectedFontPackages = getSelectedFontPackages(selectedFontKeys);
     const packageManager = detectPackageManager();
+    const packageJsonSnapshot = readPackageJson() || packageJsonData || {};
+    const missingFontPackages = selectedFontPackages.filter(
+      (pkg) => !hasDependency(packageJsonSnapshot, pkg),
+    );
     let fontInstallAttempted = false;
     let fontInstallSucceeded = false;
+    let fontInstallSkipped = false;
+    let fontPackagesAlreadyInstalled = false;
     let fontInstallError = "";
 
-    if (selectedFontPackages.length > 0) {
+    if (selectedFontPackages.length > 0 && missingFontPackages.length === 0) {
+      fontPackagesAlreadyInstalled = true;
+      console.log(
+        chalk.gray("\n  Required @fontsource packages are already installed."),
+      );
+    } else if (missingFontPackages.length > 0) {
       console.log(
         chalk.gray(
           "\n  Selected fonts can be installed automatically via @fontsource:",
         ),
       );
-      selectedFontPackages.forEach(function (fontPkg) {
+      missingFontPackages.forEach(function (fontPkg) {
         console.log(chalk.gray("  - " + fontPkg));
       });
 
-      const shouldInstallFonts = await new Confirm({
-        name: "installFontPackages",
-        message: "Install selected font packages now?",
-        initial: true,
-      }).run();
+      let shouldInstallFonts = false;
+      if (initOptions.skipFontInstall) {
+        fontInstallSkipped = true;
+      } else if (initOptions.yes) {
+        shouldInstallFonts = true;
+      } else {
+        shouldInstallFonts = await new Confirm({
+          name: "installFontPackages",
+          message: "Install selected font packages now?",
+          initial: true,
+        }).run();
+      }
 
       if (shouldInstallFonts) {
         fontInstallAttempted = true;
         const installSpinner = ora("Installing selected font packages...").start();
-        const installResult = await installPackages(packageManager, selectedFontPackages);
+        const installResult = await installPackages(packageManager, missingFontPackages);
 
         if (installResult.success) {
           fontInstallSucceeded = true;
@@ -970,7 +1150,8 @@ async function init() {
           fontInstallError = installResult.stderr || "Install command failed.";
           installSpinner.fail("Font package install failed. You can install them manually.");
         }
-      } else {
+      } else if (!initOptions.skipFontInstall) {
+        fontInstallSkipped = true;
         console.log(
           chalk.gray(
             "  Skipped font package install. You can load these fonts manually later.",
@@ -1086,22 +1267,31 @@ async function init() {
         buildSpinner.succeed("EmilyUI CSS built successfully.");
 
         const scriptsAdded = addEmilyScriptsToPackageJson();
-        const fontInstallCommand = formatInstallCommand(packageManager, selectedFontPackages);
+        const fontInstallCommand = formatInstallCommand(packageManager, missingFontPackages);
+        const fontGuidanceBlock = selectedFontGuidanceLines.length > 0
+          ? "\n" + selectedFontGuidanceLines.map((line) => "  " + line).join("\n")
+          : "";
         const fontInstallSummary = selectedFontPackages.length === 0
           ? ""
+          : fontPackagesAlreadyInstalled
+            ? "\n\nFonts:\n" +
+              chalk.green("  Font packages already installed.") +
+              fontGuidanceBlock
           : fontInstallAttempted && fontInstallSucceeded
             ? "\n\nFonts:\n" +
               chalk.green("  Installed font packages: ") +
-              chalk.cyan(selectedFontPackages.join(", ")) +
-              "\n" +
-              chalk.gray(
-                "  Next: import the installed font CSS in your framework entry (for Nuxt, add them to nuxt.config css).",
-              )
+              chalk.cyan(missingFontPackages.join(", ")) +
+              fontGuidanceBlock
             : "\n\nFonts:\n" +
-              chalk.yellow("  Selected fonts require manual loading.") +
+              chalk.yellow(
+                fontInstallSkipped
+                  ? "  Font package install was skipped."
+                  : "  Selected fonts require manual loading.",
+              ) +
               "\n" +
               chalk.gray("  Install later with: ") +
               chalk.cyan(fontInstallCommand) +
+              fontGuidanceBlock +
               (fontInstallError
                 ? "\n" + chalk.gray("  Install error: " + fontInstallError)
                 : "");
@@ -1208,4 +1398,19 @@ async function init() {
   }
 }
 
-init();
+if (require.main === module) {
+  const options = parseInitOptions(process.argv.slice(2));
+  init(options);
+}
+
+module.exports = {
+  init,
+  parseInitOptions,
+  getSelectedFontKeys,
+  getSelectedFontPackages,
+  detectPackageManager,
+  getInstallCommand,
+  formatInstallCommand,
+  getFontImportPaths,
+  getFontImportGuidance,
+};
