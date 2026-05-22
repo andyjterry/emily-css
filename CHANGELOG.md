@@ -4,6 +4,11 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.20 — May 2026
+
+**fix(init,uninstall): clean Nuxt runtime wiring and prevent duplicate emily stylesheet links**
+
+---
 ## v1.2.18 — May 2026
 
 ****
