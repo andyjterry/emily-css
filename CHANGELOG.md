@@ -4,6 +4,14 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v1.2.12 — May 2026
+
+**feat(init): default to a single project-specific emily.css output path for faster dev and simpler production builds**
+
+### Fixed
+- feat(init): default to a single project-specific emily.css output path for faster dev and simpler production builds
+
+---
 ## v1.2.11 — May 2026
 
 **updated**
