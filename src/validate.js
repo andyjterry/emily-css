@@ -160,6 +160,88 @@ function validateTypographyTokenGroup(group, pathName, errors) {
   });
 }
 
+function validateProseConfig(prose, errors) {
+  if (!isPlainObject(prose)) {
+    errors.push('prose must be an object');
+    return;
+  }
+
+  if ('enabled' in prose && typeof prose.enabled !== 'boolean') {
+    errors.push('prose.enabled must be a boolean');
+  }
+
+  if ('legacyAlias' in prose && typeof prose.legacyAlias !== 'boolean') {
+    errors.push('prose.legacyAlias must be a boolean');
+  }
+
+  if ('widths' in prose) {
+    if (!isPlainObject(prose.widths)) {
+      errors.push('prose.widths must be an object');
+    } else {
+      Object.entries(prose.widths).forEach(([name, value]) => {
+        if (!/^[a-z][a-z0-9-]*$/.test(name)) {
+          errors.push(`prose.widths key "${name}" must use lowercase letters, numbers, and hyphens`);
+          return;
+        }
+
+        const result = validateCssLengthValue(value);
+        if (!result.valid) {
+          errors.push(`prose.widths.${name} has invalid value "${value}": ${result.reason}`);
+        }
+      });
+    }
+  }
+
+  if ('defaultWidth' in prose) {
+    if (typeof prose.defaultWidth !== 'string' || !prose.defaultWidth.trim()) {
+      errors.push('prose.defaultWidth must be a non-empty string');
+    } else if (isPlainObject(prose.widths) && !(prose.defaultWidth in prose.widths)) {
+      errors.push(`prose.defaultWidth "${prose.defaultWidth}" must exist in prose.widths`);
+    }
+  }
+
+  if ('flowSpace' in prose) {
+    const result = validateCssLengthValue(prose.flowSpace);
+    if (!result.valid) {
+      errors.push(`prose.flowSpace has invalid value "${prose.flowSpace}": ${result.reason}`);
+    }
+  }
+
+  if ('elements' in prose) {
+    if (!isPlainObject(prose.elements)) {
+      errors.push('prose.elements must be an object');
+    } else {
+      Object.entries(prose.elements).forEach(([elementName, elementConfig]) => {
+        if (!/^[a-z][a-z0-9-]*$/.test(elementName)) {
+          errors.push(`prose.elements key "${elementName}" must use lowercase element names`);
+          return;
+        }
+
+        if (!isPlainObject(elementConfig)) {
+          errors.push(`prose.elements.${elementName} must be an object`);
+          return;
+        }
+
+        Object.entries(elementConfig).forEach(([propertyName, value]) => {
+          if (!/^[a-z][a-zA-Z0-9]*$/.test(propertyName)) {
+            errors.push(`prose.elements.${elementName}.${propertyName} must be a camelCase property name`);
+            return;
+          }
+
+          if (!['string', 'number', 'boolean'].includes(typeof value)) {
+            errors.push(`prose.elements.${elementName}.${propertyName} must be a string, number, or boolean`);
+            return;
+          }
+
+          if (typeof value === 'string' && hasCssInjectionRisk(value.trim())) {
+            errors.push(`prose.elements.${elementName}.${propertyName} must not contain unsafe CSS syntax`);
+          }
+        });
+      });
+    }
+  }
+}
+
 function validateFontFamily(value) {
   if (typeof value !== 'string') {
     return { valid: false, reason: 'must be a string font key' };
@@ -344,6 +426,10 @@ function validateConfigShape(config) {
         errors.push(`layout.containerMaxWidth has invalid value "${config.layout.containerMaxWidth}": ${result.reason}`);
       }
     }
+  }
+
+  if ('prose' in config) {
+    validateProseConfig(config.prose, errors);
   }
 
   if ('extend' in config) {

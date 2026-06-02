@@ -1454,7 +1454,7 @@ if (require.main === module) {
 }
 
 // Wrapper kept for backwards compatibility — delegates to src/generators/patterns.js
-// Generates composite classes including .prose, .prose-emily, .stack, .cluster, .sidebar, etc.
+// Generates composite classes including .prose, .stack, .cluster, .sidebar, etc.
 function generatePatternComponents(config) {
   return patternComponents(config);
 }

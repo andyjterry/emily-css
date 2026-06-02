@@ -76,6 +76,70 @@ const FONT_PACKAGE_BY_KEY = {
 };
 
 const FONT_KEYS_WITHOUT_PACKAGE = new Set(["system", "georgia", "mono"]);
+const DEFAULT_PROSE_CONFIG = {
+  enabled: true,
+  defaultWidth: "md",
+  widths: {
+    sm: "55ch",
+    md: "65ch",
+    lg: "75ch",
+    xl: "85ch",
+  },
+  flowSpace: "1rem",
+  legacyAlias: false,
+  elements: {
+    p: {
+      color: "neutral-80",
+      lineHeight: 1.75,
+    },
+    li: {
+      color: "neutral-80",
+      lineHeight: 1.75,
+    },
+    h2: {
+      fontSize: "3xl",
+      lineHeight: "3xl",
+      color: "neutral-90",
+      marginTop: "12",
+    },
+    h3: {
+      fontSize: "2xl",
+      lineHeight: "2xl",
+      color: "neutral-90",
+      marginTop: "8",
+    },
+    h4: {
+      fontSize: "xl",
+      lineHeight: "xl",
+      color: "neutral-90",
+      marginTop: "6",
+    },
+    ul: {
+      paddingLeft: "6",
+      listStyle: "disc",
+    },
+    ol: {
+      paddingLeft: "6",
+      listStyle: "decimal",
+    },
+    a: {
+      color: "brand-80",
+      underline: true,
+      underlineOffset: "2px",
+    },
+    blockquote: {
+      borderLeftColor: "brand-80",
+      borderLeftWidth: "4px",
+      paddingLeft: "4",
+      fontStyle: "italic",
+    },
+    code: {
+      fontSize: "sm",
+      background: "neutral-10",
+      borderColor: "neutral-20",
+    },
+  },
+};
 const FONT_IMPORTS_BY_KEY = {
   inter: [
     "@fontsource/inter/400.css",
@@ -973,6 +1037,7 @@ function createDefaultConfig({
   baseUnit,
   baseFontSize,
   detectedProject,
+  proseEnabled,
 }) {
   return {
     name,
@@ -1000,6 +1065,11 @@ function createDefaultConfig({
     semanticColours: {
       dark: "#1A1A1A",
       light: "#FAFAFA",
+    },
+
+    prose: {
+      ...DEFAULT_PROSE_CONFIG,
+      enabled: proseEnabled !== false,
     },
 
     purge: {
@@ -1478,6 +1548,30 @@ async function init(options = {}) {
     }).run();
 
     // =========================================================================
+    // PROSE
+    // =========================================================================
+
+    let proseEnabled = true;
+    const existingProse = isPlainObject(existingConfig && existingConfig.prose)
+      ? existingConfig.prose
+      : {};
+
+    if (initOptions.yes) {
+      proseEnabled = typeof existingProse.enabled === "boolean"
+        ? existingProse.enabled
+        : true;
+    } else {
+      console.log(chalk.bold("\n" + chalk.magenta("→") + " Prose"));
+      proseEnabled = await new Confirm({
+        name: "proseEnabled",
+        message: "Generate scoped rich-text styles for .prose?",
+        initial: typeof existingProse.enabled === "boolean"
+          ? existingProse.enabled
+          : true,
+      }).run();
+    }
+
+    // =========================================================================
     // SPACING
     // =========================================================================
 
@@ -1524,6 +1618,7 @@ async function init(options = {}) {
       baseUnit,
       baseFontSize,
       detectedProject,
+      proseEnabled,
     });
     const config = mergeWithDefaults(generatedDefaults, existingConfig);
     config.name = projectName.trim();
@@ -1539,6 +1634,8 @@ async function init(options = {}) {
       body: bodyFont,
     };
     config.colours = colours;
+    config.prose = mergeWithDefaults(DEFAULT_PROSE_CONFIG, config.prose);
+    config.prose.enabled = proseEnabled;
 
     const finalValidation = validateConfigShape(config);
     if (!finalValidation.valid) {
@@ -1752,4 +1849,5 @@ module.exports = {
   patchAstroWithImports,
   applyFontRuntimeWiring,
   canAutoWireFontRuntime,
+  DEFAULT_PROSE_CONFIG,
 };

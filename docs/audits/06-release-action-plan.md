@@ -449,18 +449,16 @@ All tasks in this phase are additive. No existing patterns change. The form elem
 **Files:** `src/generators/patterns.js`, `tests/test.js`
 
 **Instructions:**
-1. In `src/generators/patterns.js`, remove the stub `.prose` (the two-line version).
-2. Rename `.prose-emily` to `.prose`. Keep all of its rules.
-3. Add `.prose-emily` as a CSS alias pointing to `.prose`:
-   ```css
-   .prose-emily { /* alias — use .prose */ }
-   ```
-   Or generate identical rules under both selectors to avoid a breaking removal.
-4. Update any docs references.
+1. In `src/generators/patterns.js`, make `.prose` the scoped rich-text implementation.
+2. Generate `.prose-sm`, `.prose-md`, `.prose-lg`, and `.prose-xl` as width-only modifiers.
+3. Do not generate `.prose-emily` by default.
+4. Add `prose.legacyAlias` for temporary backwards compatibility when existing projects still need `.prose-emily`.
+5. Update any docs references.
 
 **Tests required:**
-- Assert generated CSS contains `.prose` with heading/paragraph/link styles (not just `max-width`).
-- Assert generated CSS still contains `.prose-emily` for backwards compatibility.
+- Assert generated CSS contains `.prose` with heading/paragraph/link styles.
+- Assert generated CSS does not contain `.prose-emily` by default.
+- Assert `prose.legacyAlias` generates `.prose-emily` when explicitly enabled.
 
 **Depends on:** Task 18
 

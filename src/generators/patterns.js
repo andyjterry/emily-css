@@ -5,6 +5,218 @@
 // Gap values reference spacing variables generated from emily.config.json,
 // with pixel fallbacks so they work even without the variables in scope.
 
+const DEFAULT_PROSE = {
+  enabled: true,
+  defaultWidth: 'md',
+  widths: {
+    sm: '55ch',
+    md: '65ch',
+    lg: '75ch',
+    xl: '85ch',
+  },
+  flowSpace: '1rem',
+  legacyAlias: false,
+  elements: {
+    p: {
+      color: 'neutral-80',
+      lineHeight: 1.75,
+    },
+    li: {
+      color: 'neutral-80',
+      lineHeight: 1.75,
+    },
+    h2: {
+      fontSize: '3xl',
+      lineHeight: '3xl',
+      color: 'neutral-90',
+      marginTop: '12',
+    },
+    h3: {
+      fontSize: '2xl',
+      lineHeight: '2xl',
+      color: 'neutral-90',
+      marginTop: '8',
+    },
+    h4: {
+      fontSize: 'xl',
+      lineHeight: 'xl',
+      color: 'neutral-90',
+      marginTop: '6',
+    },
+    ul: {
+      paddingLeft: '6',
+      listStyle: 'disc',
+    },
+    ol: {
+      paddingLeft: '6',
+      listStyle: 'decimal',
+    },
+    a: {
+      color: 'brand-80',
+      underline: true,
+      underlineOffset: '2px',
+    },
+    blockquote: {
+      borderLeftColor: 'brand-80',
+      borderLeftWidth: '4px',
+      paddingLeft: '4',
+      fontStyle: 'italic',
+    },
+    code: {
+      fontSize: 'sm',
+      background: 'neutral-10',
+      borderColor: 'neutral-20',
+    },
+  },
+};
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergePlain(defaults, value) {
+  if (!isPlainObject(defaults)) return value === undefined ? defaults : value;
+
+  const output = { ...defaults };
+  if (!isPlainObject(value)) return output;
+
+  Object.keys(value).forEach((key) => {
+    output[key] = mergePlain(defaults[key], value[key]);
+  });
+
+  return output;
+}
+
+function spacingVar(value) {
+  if (typeof value !== 'string') return value;
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) return `var(--space-${value})`;
+  return value;
+}
+
+function colorVar(value, property = 'color') {
+  if (typeof value !== 'string') return value;
+  if (/^[a-z][a-z0-9-]*-\d{2,3}$/.test(value)) return `var(--color-${value})`;
+  if (/^[a-z][a-z0-9-]*$/.test(value) && property !== 'font-size') return `var(--color-${value})`;
+  return value;
+}
+
+function fontSizeVar(value) {
+  if (typeof value !== 'string') return value;
+  if (/^[a-z0-9]+(?:\.[0-9]+)?xl$|^(?:xs|sm|base|lg|xl|\dxl)$/.test(value)) {
+    return `var(--text-${value})`;
+  }
+  return value;
+}
+
+function lineHeightValue(value) {
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'string' && /^(?:xs|sm|base|lg|xl|[2-9]xl)$/.test(value)) {
+    return `var(--leading-${value})`;
+  }
+  return value;
+}
+
+function declaration(property, value) {
+  if (value === undefined || value === null || value === false || value === '') return '';
+  return `    ${property}: ${value};\n`;
+}
+
+function proseSelector(selector, prose) {
+  if (!prose.legacyAlias) return `.prose ${selector}`;
+  return `.prose ${selector},\n  .prose-emily ${selector}`;
+}
+
+function generateProseRule(selector, declarations, prose) {
+  const body = declarations.filter(Boolean).join('');
+  if (!body) return '';
+  return `\n  ${proseSelector(selector, prose)} {\n${body}  }\n`;
+}
+
+function generateProseComponents(config = {}) {
+  const prose = mergePlain(DEFAULT_PROSE, config.prose);
+  if (prose.enabled === false) return '';
+
+  const widths = isPlainObject(prose.widths) ? prose.widths : DEFAULT_PROSE.widths;
+  const defaultWidthKey = widths[prose.defaultWidth] ? prose.defaultWidth : DEFAULT_PROSE.defaultWidth;
+  const defaultWidth = widths[defaultWidthKey] || DEFAULT_PROSE.widths.md;
+  const baseSelector = prose.legacyAlias ? '.prose,\n  .prose-emily' : '.prose';
+  const elements = prose.elements || {};
+
+  let css = `
+  /* Comfortable reading column with scoped rich-text styles */
+  ${baseSelector} {
+    max-width: var(--prose-width-${defaultWidthKey}, ${defaultWidth});
+    margin-inline: auto;
+  }
+
+  ${baseSelector} > * + * {
+    margin-top: ${prose.flowSpace};
+  }
+`;
+
+  Object.entries(widths).forEach(([name, width]) => {
+    css += `
+  .prose-${name} {
+    max-width: ${width};
+  }
+`;
+  });
+
+  css += generateProseRule('p', [
+    declaration('color', colorVar(elements.p?.color)),
+    declaration('line-height', lineHeightValue(elements.p?.lineHeight)),
+  ], prose);
+
+  css += generateProseRule('li', [
+    declaration('color', colorVar(elements.li?.color)),
+    declaration('line-height', lineHeightValue(elements.li?.lineHeight)),
+  ], prose);
+
+  ['h2', 'h3', 'h4'].forEach((tag) => {
+    const element = elements[tag] || {};
+    css += generateProseRule(tag, [
+      declaration('font-family', 'inherit'),
+      declaration('font-size', fontSizeVar(element.fontSize)),
+      declaration('line-height', lineHeightValue(element.lineHeight)),
+      declaration('color', colorVar(element.color)),
+      declaration('margin-top', spacingVar(element.marginTop)),
+    ], prose);
+  });
+
+  ['ul', 'ol'].forEach((tag) => {
+    const element = elements[tag] || {};
+    css += generateProseRule(tag, [
+      declaration('padding-left', spacingVar(element.paddingLeft)),
+      declaration('list-style-type', element.listStyle),
+    ], prose);
+  });
+
+  css += generateProseRule('a', [
+    declaration('color', colorVar(elements.a?.color)),
+    elements.a?.underline === true ? declaration('text-decoration', 'underline') : '',
+    declaration('text-underline-offset', elements.a?.underlineOffset),
+  ], prose);
+
+  css += generateProseRule('blockquote', [
+    declaration('border-left-color', colorVar(elements.blockquote?.borderLeftColor)),
+    declaration('border-left-width', elements.blockquote?.borderLeftWidth),
+    declaration('padding-left', spacingVar(elements.blockquote?.paddingLeft)),
+    declaration('font-style', elements.blockquote?.fontStyle),
+  ], prose);
+
+  css += generateProseRule('code', [
+    declaration('font-size', fontSizeVar(elements.code?.fontSize)),
+    declaration('background-color', colorVar(elements.code?.background)),
+    declaration('border-color', colorVar(elements.code?.borderColor)),
+    declaration('border-width', '1px'),
+    declaration('border-style', 'solid'),
+    declaration('border-radius', 'var(--space-1, 0.25rem)'),
+    declaration('padding', '0.125rem 0.375rem'),
+  ], prose);
+
+  return css;
+}
+
 function patternComponents(config = {}) {
   const containerMaxWidth = config.layout?.containerMaxWidth ?? '1100px';
   const includeFormBase = config.formBase === true;
@@ -167,80 +379,7 @@ function patternComponents(config = {}) {
   }
 
   /* ---- Reading / Prose ---- */
-
-  /* Comfortable reading column — limits line length, centers the block */
-  .prose,
-  .prose-emily {
-    max-width: 65ch;
-    margin-inline: auto;
-  }
-
-  .prose > * + *,
-  .prose-emily > * + * {
-    margin-top: var(--space-4, 1rem);
-  }
-
-  .prose h2,
-  .prose h3,
-  .prose-emily h2,
-  .prose-emily h3 {
-    font-family: inherit;
-    color: var(--color-neutral-90);
-    line-height: 1.25;
-  }
-
-  .prose h2,
-  .prose-emily h2 {
-    font-size: var(--text-2xl, 24px);
-    margin-top: var(--space-10, 2.5rem);
-  }
-
-  .prose h3,
-  .prose-emily h3 {
-    font-size: var(--text-xl, 20px);
-    margin-top: var(--space-8, 2rem);
-  }
-
-  .prose p,
-  .prose li,
-  .prose-emily p,
-  .prose-emily li {
-    color: var(--color-neutral-70);
-    line-height: 1.75;
-  }
-
-  .prose ul,
-  .prose ol,
-  .prose-emily ul,
-  .prose-emily ol {
-    padding-left: var(--space-6, 1.5rem);
-  }
-
-  .prose ul,
-  .prose-emily ul {
-    list-style-type: disc;
-  }
-
-  .prose ol,
-  .prose-emily ol {
-    list-style-type: decimal;
-  }
-
-  .prose a,
-  .prose-emily a {
-    color: var(--color-brand-80);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .prose code,
-  .prose-emily code {
-    font-size: var(--text-sm, 14px);
-    background-color: var(--color-neutral-10);
-    border: 1px solid var(--color-neutral-20);
-    border-radius: var(--space-1, 0.25rem);
-    padding: 0.125rem 0.375rem;
-  }
+${generateProseComponents(config)}
 
   /* ---- Composition ---- */
 
@@ -763,5 +902,7 @@ ${formBaseCss}
 }
 
 module.exports = {
+  DEFAULT_PROSE,
+  generateProseComponents,
   patternComponents,
 };

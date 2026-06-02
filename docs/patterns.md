@@ -16,3 +16,25 @@ EmilyCSS includes a small pattern layer for common layout compositions. These cl
 - `.section`, `.section-sm`, and `.section-lg` provide tokenized vertical section spacing.
 
 Existing patterns such as `.stack`, `.cluster`, `.width-container`, `.prose`, `.field-container`, `.error-summary`, and `.btn` remain available.
+
+## Prose
+
+Use `.prose` for scoped rich-text content generated from `emily.config.json`.
+
+```html
+<article class="prose prose-md text-xl p-4 mx-auto">
+  ...
+</article>
+```
+
+Use `.prose-sm`, `.prose-md`, `.prose-lg`, and `.prose-xl` to control reading width only. Font size remains controlled by typography utilities such as `text-lg` and `text-xl`.
+
+EmilyCSS does not generate `.prose-emily` by default. Existing projects can temporarily enable it with:
+
+```json
+{
+  "prose": {
+    "legacyAlias": true
+  }
+}
+```
