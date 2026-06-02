@@ -4,6 +4,20 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## v2.0.5 — June 2026
+
+**removed typography styles that were fixed**
+
+### Fixed
+- removed typography fixed styles.
+
+---
+# Changelog
+
+All notable changes to `emily-css` are documented here.
+
+---
+
 ## v2.0.4 — June 2026
 
 **release latest version**
