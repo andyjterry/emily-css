@@ -1149,7 +1149,7 @@ function buildFullFramework() {
   utilityCss += generateBorderUtilities(config);
   utilityCss += generateColourUtilities(colours);
   utilityCss += generateSemanticColourUtilities(config.semanticColours);
-  utilityCss += positioningUtilities({ config, spacing });
+  utilityCss += positioningUtilities(spacing);
   utilityCss += overflowUtilities({ config });
   utilityCss += transformUtilities(spacing);
   utilityCss += shadowUtilities({ config });

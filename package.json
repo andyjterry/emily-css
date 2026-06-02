@@ -65,5 +65,13 @@
     "enquirer": "^2.4.1",
     "fast-glob": "^3.3.3",
     "ora": "^5.4.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emilyui/emily-css.git"
+  },
+  "bugs": {
+    "url": "https://github.com/emilyui/emily-css/issues"
+  },
+  "homepage": "https://github.com/emilyui/emily-css#readme"
 }

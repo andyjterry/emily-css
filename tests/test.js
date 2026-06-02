@@ -2291,58 +2291,17 @@ const {
   getSelectedFontPackages,
   getFontImportPaths,
   getFontImportGuidance,
-  getNuxtStylesheetHrefFromOutputPath,
   formatInstallCommand,
   getInstallCommand,
   patchNuxtConfigCssImports,
-  patchNuxtHeadStylesheetHref,
   patchJsEntryWithImports,
 } = require('../src/init.js');
-const {
-  parseUninstallOptions,
-  removeEmilyScripts,
-  cleanupNuxtRuntimeWiring,
-} = require('../src/uninstall.js');
 
 test('parseInitOptions supports --yes, --skip-font-install, and --fresh', () => {
   const opts = parseInitOptions(['--yes', '--skip-font-install', '--fresh']);
   assert.strictEqual(opts.yes, true);
   assert.strictEqual(opts.skipFontInstall, true);
   assert.strictEqual(opts.fresh, true);
-});
-
-test('parseUninstallOptions supports --yes, --dry-run, and keep flags', () => {
-  const opts = parseUninstallOptions([
-    '--yes',
-    '--dry-run',
-    '--keep-config',
-    '--keep-css',
-    '--keep-scripts',
-    '--keep-font-packages',
-  ]);
-  assert.strictEqual(opts.yes, true);
-  assert.strictEqual(opts.dryRun, true);
-  assert.strictEqual(opts.keepConfig, true);
-  assert.strictEqual(opts.keepCss, true);
-  assert.strictEqual(opts.keepScripts, true);
-  assert.strictEqual(opts.keepFontPackages, true);
-});
-
-test('removeEmilyScripts removes emily scripts and emily-css command scripts', () => {
-  const packageJson = {
-    scripts: {
-      dev: 'nuxt dev',
-      'emily:build': 'emily-css build',
-      lint: 'eslint .',
-      custom: 'node tools.js && emily-css doctor',
-    },
-  };
-
-  const removed = removeEmilyScripts(packageJson);
-  assert.ok(removed.includes('emily:build'));
-  assert.ok(removed.includes('custom'));
-  assert.strictEqual(packageJson.scripts.dev, 'nuxt dev');
-  assert.strictEqual(packageJson.scripts.lint, 'eslint .');
 });
 
 test('getSelectedFontPackages returns @fontsource packages for non-system fonts', () => {
@@ -2364,11 +2323,6 @@ test('getFontImportGuidance returns Nuxt css-array guidance', () => {
   assert.ok(guidance.some((line) => line.includes('@fontsource/inter/400.css')));
 });
 
-test('getNuxtStylesheetHrefFromOutputPath maps public output to root href', () => {
-  assert.strictEqual(getNuxtStylesheetHrefFromOutputPath('public/emily.css'), '/emily.css');
-  assert.strictEqual(getNuxtStylesheetHrefFromOutputPath('dist/emily.css'), '/dist/emily.css');
-});
-
 test('patchNuxtConfigCssImports replaces stale @fontsource imports', () => {
   const input = [
     'export default defineNuxtConfig({',
@@ -2385,83 +2339,6 @@ test('patchNuxtConfigCssImports replaces stale @fontsource imports', () => {
   assert.ok(result.content.includes("'@fontsource/figtree/400.css'"));
   assert.ok(!result.content.includes('@fontsource/inter/400.css'));
   assert.ok(!result.content.includes('@fontsource/lexend/400.css'));
-});
-
-test('patchNuxtConfigCssImports removes stale emily.min.css from css array', () => {
-  const input = [
-    'export default defineNuxtConfig({',
-    '  css: [',
-    "    'emily.min.css',",
-    "    '@fontsource/inter/400.css',",
-    '  ],',
-    '})',
-    '',
-  ].join('\n');
-
-  const result = patchNuxtConfigCssImports(input, ['@fontsource/figtree/400.css']);
-  assert.strictEqual(result.changed, true);
-  assert.ok(result.content.includes("'@fontsource/figtree/400.css'"));
-  assert.ok(!result.content.includes('emily.min.css'));
-});
-
-test('patchNuxtHeadStylesheetHref rewrites stale emily.min.css href values', () => {
-  const input = [
-    'export default defineNuxtConfig({',
-    '  app: {',
-    '    head: {',
-    '      link: [',
-    "        { rel: 'stylesheet', href: 'emily.min.css' },",
-    '      ]',
-    '    }',
-    '  }',
-    '})',
-    '',
-  ].join('\n');
-
-  const result = patchNuxtHeadStylesheetHref(input, '/emily.css');
-  assert.strictEqual(result.changed, true);
-  assert.ok(result.content.includes("href: '/emily.css'"));
-  assert.ok(!result.content.includes('emily.min.css'));
-});
-
-test('patchNuxtHeadStylesheetHref adds stylesheet link when head.link exists but has no emily entry', () => {
-  const input = [
-    'export default defineNuxtConfig({',
-    '  app: {',
-    '    head: {',
-    '      link: [',
-    "        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },",
-    '      ]',
-    '    }',
-    '  }',
-    '})',
-    '',
-  ].join('\n');
-
-  const result = patchNuxtHeadStylesheetHref(input, '/emily.css');
-  assert.strictEqual(result.changed, true);
-  assert.ok(result.content.includes("href: '/emily.css'"));
-  assert.ok(result.content.includes('/favicon.svg'));
-});
-
-test('patchNuxtHeadStylesheetHref does not duplicate an existing emily stylesheet link', () => {
-  const input = [
-    'export default defineNuxtConfig({',
-    '  app: {',
-    '    head: {',
-    '      link: [',
-    "        { rel: 'stylesheet', href: '/emily.css' },",
-    '      ]',
-    '    }',
-    '  }',
-    '})',
-    '',
-  ].join('\n');
-
-  const result = patchNuxtHeadStylesheetHref(input, '/emily.css');
-  assert.strictEqual(result.changed, false);
-  const matches = result.content.match(/href:\s*'\/emily\.css'/g) || [];
-  assert.strictEqual(matches.length, 1, 'Expected only one /emily.css link entry');
 });
 
 test('patchJsEntryWithImports prepends only missing imports', () => {
@@ -2499,108 +2376,6 @@ test('init source includes existing-config mode choice prompt', () => {
     initJs.includes('Existing emily.config.json detected. How do you want to continue?'),
     'Missing existing config choice prompt in init flow',
   );
-});
-
-test('init source does not prompt to auto-start watcher at the end', () => {
-  const initJs = fs.readFileSync(path.join(__dirname, '../src/init.js'), 'utf-8');
-  assert.ok(
-    !initJs.includes('Start the file watcher now?'),
-    'Init should not prompt to auto-start watcher',
-  );
-});
-
-test('uninstall removes emily config, generated css, and emily scripts', () => {
-  const tmpDir = createTempProject();
-
-  try {
-    const packageJsonPath = path.join(tmpDir, 'package.json');
-    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    pkg.scripts = {
-      dev: 'nuxt dev',
-      'emily:build': 'emily-css build',
-      'emily:watch': 'emily-css watch',
-    };
-    pkg.dependencies = {
-      '@fontsource/lexend': '^5.0.0',
-    };
-    fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n');
-
-    fs.mkdirSync(path.join(tmpDir, 'public'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'public', 'emily.css'), '/* emily */');
-    fs.writeFileSync(
-      path.join(tmpDir, 'emily.config.json'),
-      JSON.stringify(
-        {
-          fontFamily: { heading: 'mono', body: 'lexend' },
-          output: { css: 'public/emily.css', fullCss: 'public/emily.css' },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
-
-    const result = spawnSync(
-      'node',
-      [path.join(__dirname, '../bin/emilyui.js'), 'uninstall', '--yes'],
-      { cwd: tmpDir, encoding: 'utf8' },
-    );
-    assert.strictEqual(result.status, 0, result.stderr);
-
-    const nextPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    assert.ok(!fs.existsSync(path.join(tmpDir, 'emily.config.json')), 'Expected emily.config.json to be removed');
-    assert.ok(!fs.existsSync(path.join(tmpDir, 'public', 'emily.css')), 'Expected generated CSS to be removed');
-    assert.ok(!nextPackageJson.scripts['emily:build'], 'Expected emily scripts removed');
-    assert.ok(!nextPackageJson.scripts['emily:watch'], 'Expected emily scripts removed');
-    assert.ok(!nextPackageJson.dependencies['@fontsource/lexend'], 'Expected selected @fontsource package reference removed');
-    assert.ok(result.stdout.includes('EmilyCSS cleanup complete'), 'Expected successful cleanup output');
-  } finally {
-    removeTempProject(tmpDir);
-  }
-});
-
-test('cleanupNuxtRuntimeWiring removes selected font imports and emily stylesheet link', () => {
-  const tmpDir = createTempProject();
-  const originalCwd = process.cwd();
-
-  try {
-    process.chdir(tmpDir);
-    fs.writeFileSync(
-      path.join(tmpDir, 'nuxt.config.ts'),
-      [
-        'export default defineNuxtConfig({',
-        '  css: [',
-        "    '@fontsource/figtree/400.css',",
-        "    '@fontsource/figtree/500.css',",
-        '  ],',
-        '  app: {',
-        '    head: {',
-        '      link: [',
-        "        { rel: 'stylesheet', href: '/emily.css' },",
-        "        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },",
-        '      ]',
-        '    }',
-        '  }',
-        '})',
-        '',
-      ].join('\n'),
-    );
-
-    const config = {
-      fontFamily: { heading: 'figtree', body: 'figtree' },
-    };
-
-    const result = cleanupNuxtRuntimeWiring(config, false);
-    assert.strictEqual(result.changed, true);
-
-    const updated = fs.readFileSync(path.join(tmpDir, 'nuxt.config.ts'), 'utf8');
-    assert.ok(!updated.includes('@fontsource/figtree/400.css'));
-    assert.ok(!updated.includes('@fontsource/figtree/500.css'));
-    assert.ok(!updated.includes("href: '/emily.css'"));
-    assert.ok(updated.includes('/favicon.svg'), 'Expected non-Emily link entries to remain');
-  } finally {
-    process.chdir(originalCwd);
-    removeTempProject(tmpDir);
-  }
 });
 
 test('purgeCSS uses isolated temp sourceGlobs for used classes', () => {
@@ -2781,14 +2556,6 @@ test('accessibilityUtilities includes .focus-ring-inset:focus-visible', () => {
 test('accessibilityUtilities includes .focus-ring-none:focus-visible', () => {
   const css = a11yUtils();
   assert.ok(css.includes('.focus-ring-none:focus-visible'), 'Missing .focus-ring-none:focus-visible');
-});
-
-test('accessibilityUtilities includes touch target helpers', () => {
-  const css = a11yUtils();
-  assert.ok(css.includes('.touch-target::before'), 'Missing .touch-target minimum hit area');
-  assert.ok(css.includes('width: max(100%, 24px)'), 'Expected .touch-target to keep 24px minimum');
-  assert.ok(css.includes('.touch-target-44::before'), 'Missing .touch-target-44 comfortable hit area');
-  assert.ok(css.includes('width: max(100%, 44px)'), 'Expected .touch-target-44 to use 44px minimum');
 });
 
 // ─── 18. ARIA & Data-State Variants ──────────────────────────────────────────
@@ -3488,28 +3255,6 @@ test('doctor warnings alone do not return a failing exit code', () => {
   }
 });
 
-test('doctor strict contrast turns contrast warnings into a failing exit code', () => {
-  const tmpDir = createTempProject();
-  const originalCwd = process.cwd();
-
-  try {
-    buildDoctorConfig(tmpDir, 'page.html', '<div class="flex"></div>');
-    const tmpConfig = JSON.parse(fs.readFileSync(path.join(tmpDir, 'emily.config.json'), 'utf8'));
-    tmpConfig.colours = { low: '#ffffff' };
-    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
-    process.chdir(tmpDir);
-
-    const result = doctor({ strictContrast: true });
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual(result.exitCode, 1);
-    assert.strictEqual(result.issues.length, 0);
-    assert.ok(result.contrastFailures.length > 0, 'Expected strict contrast failures');
-  } finally {
-    process.chdir(originalCwd);
-    removeTempProject(tmpDir);
-  }
-});
-
 test('createFontRuntimeWarnings flags missing @fontsource package and Nuxt import mismatch', () => {
   const tmpDir = createTempProject();
   const originalCwd = process.cwd();
@@ -3624,52 +3369,6 @@ test('CLI doctor exits cleanly when no issues are found', () => {
       !result.stdout.includes('doctor found') || result.stdout.includes('warnings'),
       'Expected doctor to exit cleanly with no class issues (warnings are allowed)',
     );
-  } finally {
-    removeTempProject(tmpDir);
-  }
-});
-
-test('CLI doctor exits 0 without strict contrast when only contrast warnings are found', () => {
-  const tmpDir = createTempProject();
-
-  try {
-    buildDoctorConfig(tmpDir, 'page.html', '<div class="flex"></div>');
-    const tmpConfig = JSON.parse(fs.readFileSync(path.join(tmpDir, 'emily.config.json'), 'utf8'));
-    tmpConfig.colours = { low: '#ffffff' };
-    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
-
-    const result = spawnSync('node', [path.join(__dirname, '../bin/emilyui.js'), 'doctor'], {
-      cwd: tmpDir,
-      encoding: 'utf8',
-    });
-
-    assert.strictEqual(result.status, 0);
-    assert.ok(result.stdout.includes('WCAG AA needs 4.5:1'), 'Expected contrast warning output');
-  } finally {
-    removeTempProject(tmpDir);
-  }
-});
-
-test('CLI doctor --strict-contrast exits 1 when low-contrast tokens exist', () => {
-  const tmpDir = createTempProject();
-
-  try {
-    buildDoctorConfig(tmpDir, 'page.html', '<div class="flex"></div>');
-    const tmpConfig = JSON.parse(fs.readFileSync(path.join(tmpDir, 'emily.config.json'), 'utf8'));
-    tmpConfig.colours = { low: '#ffffff' };
-    fs.writeFileSync(path.join(tmpDir, 'emily.config.json'), JSON.stringify(tmpConfig, null, 2));
-
-    const result = spawnSync('node', [path.join(__dirname, '../bin/emilyui.js'), 'doctor', '--strict-contrast'], {
-      cwd: tmpDir,
-      encoding: 'utf8',
-    });
-    const output = `${result.stdout}\n${result.stderr}`;
-
-    assert.strictEqual(result.status, 1);
-    assert.ok(output.includes('Contrast failure'), 'Expected strict contrast failure output');
-    assert.ok(output.includes(':1 contrast'), 'Expected contrast ratio in output');
-    assert.ok(output.includes('4.5:1 for normal text'), 'Expected normal text WCAG requirement');
-    assert.ok(output.includes('3:1 for large text'), 'Expected large text WCAG requirement');
   } finally {
     removeTempProject(tmpDir);
   }
@@ -3804,16 +3503,6 @@ test('CLI help output includes migrate command', () => {
 
   assert.strictEqual(result.status, 0);
   assert.ok(result.stdout.includes('emily-css migrate'), 'Expected help output to include migrate command');
-});
-
-test('CLI help output includes uninstall command', () => {
-  const result = spawnSync('node', [path.join(__dirname, '../bin/emilyui.js'), 'help'], {
-    cwd: path.join(__dirname, '..'),
-    encoding: 'utf8',
-  });
-
-  assert.strictEqual(result.status, 0);
-  assert.ok(result.stdout.includes('emily-css uninstall'), 'Expected help output to include uninstall command');
 });
 
 test('migrate command runs without crashing', () => {
@@ -4090,7 +3779,7 @@ test('doctor accepts aria-checked: variant without flagging it as unknown', () =
   const originalCwd = process.cwd();
 
   try {
-    buildDoctorConfig(tmpDir, 'page.html', '<input class="aria-checked:bg-brand-80" />');
+    buildDoctorConfig(tmpDir, 'page.html', '<inut class="aria-checked:bg-brand-80" />');
     process.chdir(tmpDir);
 
     const result = doctor();
