@@ -889,6 +889,27 @@ requireBuild('CSS variables block exists at top', () => {
   assert.ok(builtCss.includes(':root {'), 'Missing :root { CSS variables block');
 });
 
+requireBuild('body sets inherited base typography', () => {
+  assert.ok(
+    /body\s*\{[^}]*font-size:\s*var\(--text-base,\s*16px\);[^}]*line-height:\s*var\(--leading-base,\s*1\.6\);[^}]*\}/s.test(builtCss),
+    'Expected body to set base font-size and line-height',
+  );
+});
+
+requireBuild('base paragraphs do not force typography size', () => {
+  assert.ok(
+    !/(^|\n)\s*p\s*\{[^}]*font-size:/s.test(builtCss),
+    'Paragraphs should inherit font-size instead of forcing --text-base',
+  );
+});
+
+requireBuild('base headings do not force typography size', () => {
+  assert.ok(
+    !/(^|\n)\s*h[1-6]\s*\{[^}]*font-size:/s.test(builtCss),
+    'Headings should inherit font-size unless styled by utilities or components',
+  );
+});
+
 requireBuild('all 6 colour backgrounds exist in built CSS', () => {
   Object.keys(config.colours).forEach(name => {
     assert.ok(

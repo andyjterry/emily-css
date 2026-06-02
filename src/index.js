@@ -1225,61 +1225,13 @@ function buildFullFramework() {
     padding: 0;
   }
 
+  body {
+    font-size: var(--text-base, 16px);
+    line-height: var(--leading-base, 1.6);
+  }
+
   p, h1, h2, h3, h4, h5, h6 {
     overflow-wrap: break-word;
-  }
-
-  /* Base heading scale */
-  h1 {
-    font-size: var(--text-4xl, 36px);
-    line-height: var(--leading-4xl, 1.3);
-    font-weight: var(--font-weight-bold, 700);
-    margin-bottom: var(--space-6, 1.5rem);
-  }
-
-  h2 {
-    font-size: var(--text-3xl, 30px);
-    line-height: var(--leading-3xl, 1.4);
-    font-weight: var(--font-weight-bold, 700);
-    margin-bottom: var(--space-5, 1.25rem);
-  }
-
-  h3 {
-    font-size: var(--text-2xl, 24px);
-    line-height: var(--leading-2xl, 1.4);
-    font-weight: var(--font-weight-semibold, 600);
-    margin-bottom: var(--space-4, 1rem);
-  }
-
-  h4 {
-    font-size: var(--text-xl, 20px);
-    line-height: var(--leading-xl, 1.6);
-    font-weight: var(--font-weight-semibold, 600);
-    margin-bottom: var(--space-3, 0.75rem);
-  }
-
-  h5 {
-    font-size: var(--text-lg, 18px);
-    line-height: var(--leading-lg, 1.6);
-    font-weight: var(--font-weight-medium, 500);
-    margin-bottom: var(--space-3, 0.75rem);
-  }
-
-  h6 {
-    font-size: var(--text-base, 16px);
-    line-height: var(--leading-base, 1.6);
-    font-weight: var(--font-weight-medium, 500);
-    margin-bottom: var(--space-2, 0.5rem);
-  }
-
-  p {
-    font-size: var(--text-base, 16px);
-    line-height: var(--leading-base, 1.6);
-    margin-bottom: var(--space-4, 1rem);
-  }
-
-  p:last-child {
-    margin-bottom: 0;
   }
 
   code {
