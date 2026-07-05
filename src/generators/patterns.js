@@ -1240,6 +1240,20 @@ ${formBaseCss}
     border-left-color: var(--color-brand, var(--color-brand-80));
     background-color: var(--color-brand-10, var(--color-surface, #ffffff));
   }
+
+  /* ---- Organisms ---- */
+
+  /* Column-flow gallery — no JS. Items must be display: inline-block or
+     break-inside: avoid to prevent splitting across columns. */
+  .masonry {
+    columns: 3 16rem;
+    column-gap: var(--space-6, 1.5rem);
+  }
+
+  .masonry > * {
+    break-inside: avoid;
+    margin-bottom: var(--space-6, 1.5rem);
+  }
 `;
 }
 

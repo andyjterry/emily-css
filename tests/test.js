@@ -4107,6 +4107,13 @@ test('molecule-level classes generated (card media, alert variants)', () => {
   assert.ok(css.indexOf('.alert-error') > css.indexOf('.alert {'), 'Variants must come after .alert base for cascade order');
 });
 
+test('organism-level classes generated (masonry)', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  assert.ok(css.includes('.masonry {'), 'Expected .masonry class');
+  assert.ok(css.includes('break-inside: avoid'), 'Expected masonry children to avoid column breaks');
+});
+
 test('atom classes consume role tokens and respect reduced motion', () => {
   const { patternComponents } = require('../src/generators/patterns.js');
   const css = patternComponents({});
