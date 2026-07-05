@@ -246,6 +246,24 @@ function generateCSSVariables(colours, spacing, config) {
     });
   });
 
+  // Semantic role tokens — stable names components consume regardless of palette.
+  // Declared before semanticColours so a user-defined semanticColour of the same
+  // name (e.g. "surface") overrides the default mapping.
+  // var() fallbacks cover configs that omit a colour (e.g. no "accent" scale).
+  css += `  --color-background: #ffffff;\n`;
+  css += `  --color-surface: #ffffff;\n`;
+  css += `  --color-surface-raised: var(--color-neutral-10, #f5f5f4);\n`;
+  css += `  --color-text: var(--color-neutral-90, #1c1917);\n`;
+  css += `  --color-text-muted: var(--color-neutral-60, #57534e);\n`;
+  css += `  --color-border: var(--color-neutral-30, #d6d3d1);\n`;
+  css += `  --color-brand: var(--color-brand-80, #db2777);\n`;
+  css += `  --color-accent: var(--color-accent-80, var(--color-brand-80, #db2777));\n`;
+  css += `  --color-cta: var(--color-brand-80, #db2777);\n`;
+  css += `  --color-success: var(--color-success-80, #017f65);\n`;
+  css += `  --color-warning: var(--color-warning-80, #b45309);\n`;
+  css += `  --color-error: var(--color-error-80, #b20000);\n`;
+  css += `  --color-focus: var(--focus-ring-color);\n`;
+
   // Semantic colour variables (single value, no shade scale)
   if (config.semanticColours) {
     Object.entries(config.semanticColours).forEach(([name, hex]) => {
@@ -1483,5 +1501,6 @@ module.exports = {
   addResponsiveVariants,
   generateExtendedUtilities,
   generatePatternComponents,
+  generateCSSVariables,
   generateManifest,
 };

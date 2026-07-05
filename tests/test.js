@@ -4014,6 +4014,73 @@ test('createContrastWarnings integration: white colour triggers warning at multi
   );
 });
 
+// ─── Semantic role tokens & site assembly patterns ───────────────────────────
+
+section('Semantic Role Tokens');
+
+test('generateCSSVariables emits semantic role tokens', () => {
+  const { generateCSSVariables } = require('../src/index.js');
+  const colours = generateAllColours(config.colours);
+  const spacing = generateSpacing(config.baseUnit, config.spacing.scale);
+  const css = generateCSSVariables(colours, spacing, config);
+  [
+    '--color-background:',
+    '--color-surface:',
+    '--color-surface-raised:',
+    '--color-text:',
+    '--color-text-muted:',
+    '--color-border:',
+    '--color-brand:',
+    '--color-accent:',
+    '--color-cta:',
+    '--color-success:',
+    '--color-warning:',
+    '--color-error:',
+    '--color-focus:',
+  ].forEach(token => {
+    assert.ok(css.includes(token), `Expected role token ${token}`);
+  });
+});
+
+test('semanticColours override role tokens of the same name', () => {
+  const { generateCSSVariables } = require('../src/index.js');
+  const colours = generateAllColours(config.colours);
+  const spacing = generateSpacing(config.baseUnit, config.spacing.scale);
+  const cfg = { ...config, semanticColours: { surface: '#101010' } };
+  const css = generateCSSVariables(colours, spacing, cfg);
+  const roleIndex = css.indexOf('--color-surface: #ffffff');
+  const overrideIndex = css.indexOf('--color-surface: #101010');
+  assert.ok(roleIndex !== -1, 'Expected default surface role token');
+  assert.ok(overrideIndex !== -1, 'Expected user surface override');
+  assert.ok(overrideIndex > roleIndex, 'User semanticColour must be declared after the role default so it wins');
+});
+
+section('Site Assembly Patterns');
+
+test('patternComponents generates site assembly classes', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  ['.eyebrow', '.card', '.card-hover', '.hero-title', '.hero-lead', '.cta-band', '.split', '.trust-strip', '.badge'].forEach(cls => {
+    assert.ok(css.includes(`${cls} {`) || css.includes(`${cls},`), `Expected pattern class ${cls}`);
+  });
+});
+
+test('site assembly classes consume semantic role tokens', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  assert.ok(css.includes('var(--color-surface,'), 'Expected .card to use --color-surface role');
+  assert.ok(css.includes('var(--color-text-muted,'), 'Expected lead/band text to use --color-text-muted role');
+  assert.ok(css.includes('var(--color-border,'), 'Expected borders to use --color-border role');
+});
+
+test('split collapses to one column on small screens', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  const splitIndex = css.indexOf('.split {');
+  const mediaIndex = css.indexOf('@media (max-width: 767.98px)', splitIndex);
+  assert.ok(splitIndex !== -1 && mediaIndex !== -1, 'Expected .split mobile collapse media query');
+});
+
 // --- Results -----------------------------------------------------------------
 
 const total = passed + failed;
