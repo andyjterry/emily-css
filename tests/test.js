@@ -4081,6 +4081,33 @@ test('split collapses to one column on small screens', () => {
   assert.ok(splitIndex !== -1 && mediaIndex !== -1, 'Expected .split mobile collapse media query');
 });
 
+section('Atom Classes');
+
+test('atom-level classes generated (buttons, feedback, media, layout)', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  [
+    '.btn-link', '.btn-icon',
+    '.tag', '.chip', '.status-dot', '.status-dot-success', '.status-dot-error',
+    '.spinner', '.progress', '.skeleton',
+    '.inline-error', '.inline-success', '.inline-warning', '.inline-info',
+    '.avatar', '.avatar-sm', '.avatar-lg',
+    '.divider', '.scroll-area',
+  ].forEach(cls => {
+    assert.ok(css.includes(`${cls} {`) || css.includes(`${cls},`), `Expected atom class ${cls}`);
+  });
+});
+
+test('atom classes consume role tokens and respect reduced motion', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  assert.ok(css.includes('var(--color-success,'), 'Expected status/inline atoms to use --color-success role');
+  assert.ok(css.includes('var(--color-error,'), 'Expected status/inline atoms to use --color-error role');
+  const skeletonIndex = css.indexOf('.skeleton {');
+  const reducedIndex = css.indexOf('@media (prefers-reduced-motion: reduce)', skeletonIndex);
+  assert.ok(skeletonIndex !== -1 && reducedIndex !== -1, 'Expected .skeleton reduced-motion override');
+});
+
 // --- Results -----------------------------------------------------------------
 
 const total = passed + failed;

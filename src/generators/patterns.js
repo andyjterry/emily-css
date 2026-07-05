@@ -1013,6 +1013,185 @@ ${formBaseCss}
     font-weight: var(--font-weight-semibold, 600);
     line-height: 1.4;
   }
+
+  /* ---- Atoms: buttons ---- */
+
+  /* Link-styled button — pair with .btn: <button class="btn btn-link"> */
+  .btn-link {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--color-brand, var(--color-brand-80));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .btn-link:hover {
+    color: var(--color-brand-90, var(--color-brand-80));
+  }
+
+  .btn-link:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* Icon-only button — pair with .btn and an .sr-only text label */
+  .btn-icon {
+    padding: var(--space-3, 0.75rem);
+    aspect-ratio: 1;
+  }
+
+  /* ---- Atoms: feedback ---- */
+
+  /* Square-cornered subtle label — categorisation, metadata */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+    padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    border-radius: var(--radius-base, 8px);
+    background-color: var(--color-surface-raised, var(--color-neutral-10));
+    color: var(--color-text-muted, var(--color-neutral-60));
+    font-size: var(--text-sm, 14px);
+    font-weight: var(--font-weight-semibold, 600);
+    line-height: 1.4;
+  }
+
+  /* Pill with room for a dismiss control — filters, selections */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--color-border, var(--color-neutral-30));
+    background-color: var(--color-surface, #ffffff);
+    color: var(--color-text, var(--color-neutral-90));
+    font-size: var(--text-sm, 14px);
+    line-height: 1.4;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: var(--radius-full, 9999px);
+    background-color: var(--color-text-muted, var(--color-neutral-60));
+    flex-shrink: 0;
+  }
+
+  .status-dot-success { background-color: var(--color-success, var(--color-success-80)); }
+  .status-dot-warning { background-color: var(--color-warning, var(--color-warning-80)); }
+  .status-dot-error { background-color: var(--color-error, var(--color-error-80)); }
+  .status-dot-info { background-color: var(--color-brand, var(--color-brand-80)); }
+
+  /* Pair with role="status" and visible or .sr-only loading text */
+  .spinner {
+    display: inline-block;
+    width: 1.25em;
+    height: 1.25em;
+    border: 3px solid var(--color-border, var(--color-neutral-30));
+    border-top-color: var(--color-brand, var(--color-brand-80));
+    border-radius: var(--radius-full, 9999px);
+    animation: spin 0.8s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner {
+      animation-duration: 1.6s;
+    }
+  }
+
+  /* Native <progress> element styling */
+  .progress {
+    appearance: none;
+    width: 100%;
+    height: 0.75rem;
+    border: none;
+    border-radius: var(--radius-full, 9999px);
+    overflow: hidden;
+    background-color: var(--color-surface-raised, var(--color-neutral-10));
+  }
+
+  .progress::-webkit-progress-bar {
+    background-color: var(--color-surface-raised, var(--color-neutral-10));
+  }
+
+  .progress::-webkit-progress-value {
+    background-color: var(--color-brand, var(--color-brand-80));
+  }
+
+  .progress::-moz-progress-bar {
+    background-color: var(--color-brand, var(--color-brand-80));
+  }
+
+  /* Loading placeholder — add aria-hidden="true", announce loading elsewhere */
+  .skeleton {
+    display: block;
+    min-height: 1em;
+    border-radius: var(--radius-base, 8px);
+    background-color: var(--color-surface-raised, var(--color-neutral-10));
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+    }
+  }
+
+  .inline-error,
+  .inline-success,
+  .inline-warning,
+  .inline-info {
+    display: block;
+    font-size: var(--text-sm, 14px);
+    font-weight: var(--font-weight-semibold, 600);
+    margin-top: var(--space-1, 0.25rem);
+  }
+
+  .inline-error { color: var(--color-error, var(--color-error-80)); }
+  .inline-success { color: var(--color-success, var(--color-success-80)); }
+  .inline-warning { color: var(--color-warning, var(--color-warning-80)); }
+  .inline-info { color: var(--color-text-muted, var(--color-neutral-60)); }
+
+  /* ---- Atoms: media ---- */
+
+  .avatar {
+    display: inline-block;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radius-full, 9999px);
+    object-fit: cover;
+  }
+
+  .avatar-sm {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .avatar-lg {
+    width: 4rem;
+    height: 4rem;
+  }
+
+  /* ---- Atoms: layout ---- */
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--color-border, var(--color-neutral-30));
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  /* Horizontal scroll region — add tabindex="0" and an aria-label for keyboard users */
+  .scroll-area {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .scroll-area:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
 `;
 }
 
