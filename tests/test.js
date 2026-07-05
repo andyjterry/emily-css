@@ -4098,6 +4098,15 @@ test('atom-level classes generated (buttons, feedback, media, layout)', () => {
   });
 });
 
+test('molecule-level classes generated (card media, alert variants)', () => {
+  const { patternComponents } = require('../src/generators/patterns.js');
+  const css = patternComponents({});
+  ['.card-media', '.alert', '.alert-success', '.alert-warning', '.alert-error', '.alert-info'].forEach(cls => {
+    assert.ok(css.includes(`${cls} {`) || css.includes(`${cls},`), `Expected molecule class ${cls}`);
+  });
+  assert.ok(css.indexOf('.alert-error') > css.indexOf('.alert {'), 'Variants must come after .alert base for cascade order');
+});
+
 test('atom classes consume role tokens and respect reduced motion', () => {
   const { patternComponents } = require('../src/generators/patterns.js');
   const css = patternComponents({});

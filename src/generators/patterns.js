@@ -1192,6 +1192,54 @@ ${formBaseCss}
     outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
+
+  /* ---- Molecules ---- */
+
+  /* Flush image at the top of a .card — cancels the card padding */
+  .card-media {
+    margin: calc(-1 * var(--space-6, 1.5rem)) calc(-1 * var(--space-6, 1.5rem)) 0;
+    border-radius: calc(var(--radius-md, 12px) - 1px) calc(var(--radius-md, 12px) - 1px) 0 0;
+    overflow: hidden;
+  }
+
+  .card-media img {
+    display: block;
+    width: 100%;
+    object-fit: cover;
+  }
+
+  /* Status banner — status + text + optional action. Not colour-only:
+     lead with a bold status word. role="alert" only for interruptions. */
+  .alert {
+    display: grid;
+    gap: var(--space-1, 0.25rem);
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border, var(--color-neutral-30));
+    border-left: 4px solid var(--color-text-muted, var(--color-neutral-60));
+    border-radius: var(--radius-base, 8px);
+    background-color: var(--color-surface, #ffffff);
+    color: var(--color-text, var(--color-neutral-90));
+  }
+
+  .alert-success {
+    border-left-color: var(--color-success, var(--color-success-80));
+    background-color: var(--color-success-10, var(--color-surface, #ffffff));
+  }
+
+  .alert-warning {
+    border-left-color: var(--color-warning, var(--color-warning-80));
+    background-color: var(--color-warning-10, var(--color-surface, #ffffff));
+  }
+
+  .alert-error {
+    border-left-color: var(--color-error, var(--color-error-80));
+    background-color: var(--color-error-10, var(--color-surface, #ffffff));
+  }
+
+  .alert-info {
+    border-left-color: var(--color-brand, var(--color-brand-80));
+    background-color: var(--color-brand-10, var(--color-surface, #ffffff));
+  }
 `;
 }
 
