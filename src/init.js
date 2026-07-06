@@ -487,13 +487,71 @@ function parseInitOptions(argv) {
   const has = function (flag) {
     return args.includes(flag);
   };
+  const valueOf = function (flag) {
+    const index = args.indexOf(flag);
+    if (index === -1) return undefined;
+    const value = args[index + 1];
+    if (typeof value !== "string" || value.startsWith("--")) return undefined;
+    return value;
+  };
 
   return {
     yes: has("--yes") || has("-y"),
     skipFontInstall: has("--skip-font-install"),
     fresh: has("--fresh"),
     useExisting: has("--use-existing"),
+    configOnly: has("--config-only"),
+    help: has("--help") || has("-h"),
+    brand: valueOf("--brand"),
+    accent: valueOf("--accent"),
+    headingFont: valueOf("--heading-font"),
+    bodyFont: valueOf("--body-font"),
   };
+}
+
+const INIT_HELP_TEXT = `
+emily-css init — set up EmilyCSS in the current project
+
+Usage:
+  npx emily-css init [options]
+
+Options:
+  --yes, -y             Non-interactive: accept detected/existing values
+  --config-only         Write emily.config.json without building CSS
+  --fresh               Ignore existing emily.config.json values
+  --use-existing        Use existing emily.config.json values as defaults
+  --skip-font-install   Do not install @fontsource packages
+  --brand <hex>         Brand colour, e.g. --brand "#D92787"
+  --accent <hex>        Accent colour, e.g. --accent "#F59E0B"
+  --heading-font <key>  Heading font (${ALLOWED_FONT_FAMILIES.join(", ")})
+  --body-font <key>     Body font (same keys as --heading-font)
+  --help, -h            Show this help
+
+Docs: https://emilyui.com/docs
+`;
+
+function validateInitFlagValues(initOptions) {
+  const errors = [];
+
+  ["brand", "accent"].forEach(function (key) {
+    const value = initOptions[key];
+    if (value === undefined) return;
+    const result = validateHexColour(value.trim());
+    if (!result.valid) {
+      errors.push("--" + key + " " + formatValueForMessage(value) + ": " + result.reason);
+    }
+  });
+
+  [["headingFont", "--heading-font"], ["bodyFont", "--body-font"]].forEach(function ([key, flag]) {
+    const value = initOptions[key];
+    if (value === undefined) return;
+    const result = validateFontFamily(String(value).trim().toLowerCase());
+    if (!result.valid) {
+      errors.push(flag + " " + formatValueForMessage(value) + ": " + result.reason);
+    }
+  });
+
+  return errors;
 }
 
 function getFontImportPaths(fontKeys) {
@@ -1228,7 +1286,28 @@ async function init(options = {}) {
     skipFontInstall: options.skipFontInstall === true,
     fresh: options.fresh === true,
     useExisting: options.useExisting === true,
+    configOnly: options.configOnly === true,
+    help: options.help === true,
+    brand: typeof options.brand === "string" ? options.brand : undefined,
+    accent: typeof options.accent === "string" ? options.accent : undefined,
+    headingFont: typeof options.headingFont === "string" ? options.headingFont : undefined,
+    bodyFont: typeof options.bodyFont === "string" ? options.bodyFont : undefined,
   };
+
+  if (initOptions.help) {
+    console.log(INIT_HELP_TEXT);
+    process.exit(0);
+  }
+
+  const flagErrors = validateInitFlagValues(initOptions);
+  if (flagErrors.length > 0) {
+    console.log(chalk.red("\n✗ Invalid init flags:\n"));
+    flagErrors.forEach(function (message) {
+      console.log(chalk.red("  - " + message));
+    });
+    console.log("");
+    process.exit(1);
+  }
 
   console.log(
     chalk.bold.magenta("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"),
@@ -1301,17 +1380,19 @@ async function init(options = {}) {
         ? titleCasePackageName(packageJsonData.name)
         : "My Design System";
 
-    const projectName = await askValidatedInput({
-      promptName: "projectName",
-      message: "Project name",
-      initial: pkgName,
-      validator: function (value) {
-        if (typeof value !== "string" || !value.trim()) {
-          return { valid: false, reason: "project name is required" };
-        }
-        return { valid: true };
-      },
-    });
+    const projectName = initOptions.yes
+      ? pkgName
+      : await askValidatedInput({
+          promptName: "projectName",
+          message: "Project name",
+          initial: pkgName,
+          validator: function (value) {
+            if (typeof value !== "string" || !value.trim()) {
+              return { valid: false, reason: "project name is required" };
+            }
+            return { valid: true };
+          },
+        });
 
     if (!projectName || !projectName.trim()) {
       console.log(chalk.red("\nProject name is required.\n"));
@@ -1324,18 +1405,29 @@ async function init(options = {}) {
 
     console.log(chalk.bold("\n" + chalk.magenta("→") + " Brand colours"));
 
-    const brand = await askColourFromPresets(
-      "brand",
-      COLOUR_PRESETS.primary,
-      "#DB2777",
-      existingColours.brand,
-    );
-    const accent = await askColourFromPresets(
-      "accent",
-      COLOUR_PRESETS.secondary,
-      "#2563EB",
-      existingColours.accent,
-    );
+    const flagBrand = normaliseHex(initOptions.brand);
+    const flagAccent = normaliseHex(initOptions.accent);
+
+    const brand = flagBrand
+      ? flagBrand
+      : initOptions.yes
+        ? normaliseHex(existingColours.brand) || "#DB2777"
+        : await askColourFromPresets(
+            "brand",
+            COLOUR_PRESETS.primary,
+            "#DB2777",
+            existingColours.brand,
+          );
+    const accent = flagAccent
+      ? flagAccent
+      : initOptions.yes
+        ? normaliseHex(existingColours.accent) || "#2563EB"
+        : await askColourFromPresets(
+            "accent",
+            COLOUR_PRESETS.secondary,
+            "#2563EB",
+            existingColours.accent,
+          );
 
     console.log(
       chalk.gray(
@@ -1352,24 +1444,30 @@ async function init(options = {}) {
       ),
     );
 
-    const success = await askColourFromPresets(
-      "success",
-      COLOUR_PRESETS.success,
-      "#017F65",
-      existingColours.success,
-    );
-    const warning = await askColourFromPresets(
-      "warning",
-      COLOUR_PRESETS.warning,
-      "#FFC107",
-      existingColours.warning,
-    );
-    const error = await askColourFromPresets(
-      "error",
-      COLOUR_PRESETS.error,
-      "#B20000",
-      existingColours.error,
-    );
+    const success = initOptions.yes
+      ? normaliseHex(existingColours.success) || "#017F65"
+      : await askColourFromPresets(
+          "success",
+          COLOUR_PRESETS.success,
+          "#017F65",
+          existingColours.success,
+        );
+    const warning = initOptions.yes
+      ? normaliseHex(existingColours.warning) || "#FFC107"
+      : await askColourFromPresets(
+          "warning",
+          COLOUR_PRESETS.warning,
+          "#FFC107",
+          existingColours.warning,
+        );
+    const error = initOptions.yes
+      ? normaliseHex(existingColours.error) || "#B20000"
+      : await askColourFromPresets(
+          "error",
+          COLOUR_PRESETS.error,
+          "#B20000",
+          existingColours.error,
+        );
 
     const colours = {
       brand,
@@ -1383,7 +1481,7 @@ async function init(options = {}) {
       ...getExistingAdditionalColours(existingColours),
     };
 
-    let addingMore = true;
+    let addingMore = !initOptions.yes;
 
     while (addingMore) {
       const wantsMore = await new Confirm({
@@ -1432,39 +1530,51 @@ async function init(options = {}) {
       ),
     );
 
-    const headingFont = await askValidatedInput({
-      promptName: "headingFont",
-      message: "Heading font family",
-      initial: (function () {
-        const existingHeading = isPlainObject(existingConfig && existingConfig.fontFamily)
-          ? existingConfig.fontFamily.heading
-          : existingConfig && existingConfig.fontFamily;
-        if (typeof existingHeading !== "string") return "lexend";
-        const candidate = existingHeading.trim().toLowerCase();
-        return validateFontFamily(candidate).valid ? candidate : "lexend";
-      })(),
-      validator: validateFontFamily,
-      normalise: function (value) {
-        return String(value).trim().toLowerCase();
-      },
-    });
+    const headingFontDefault = (function () {
+      const existingHeading = isPlainObject(existingConfig && existingConfig.fontFamily)
+        ? existingConfig.fontFamily.heading
+        : existingConfig && existingConfig.fontFamily;
+      if (typeof existingHeading !== "string") return "lexend";
+      const candidate = existingHeading.trim().toLowerCase();
+      return validateFontFamily(candidate).valid ? candidate : "lexend";
+    })();
 
-    const bodyFont = await askValidatedInput({
-      promptName: "bodyFont",
-      message: "Body font family",
-      initial: (function () {
-        const existingBody = isPlainObject(existingConfig && existingConfig.fontFamily)
-          ? existingConfig.fontFamily.body
-          : existingConfig && existingConfig.fontFamily;
-        if (typeof existingBody !== "string") return "inter";
-        const candidate = existingBody.trim().toLowerCase();
-        return validateFontFamily(candidate).valid ? candidate : "inter";
-      })(),
-      validator: validateFontFamily,
-      normalise: function (value) {
-        return String(value).trim().toLowerCase();
-      },
-    });
+    const headingFont = initOptions.headingFont
+      ? String(initOptions.headingFont).trim().toLowerCase()
+      : initOptions.yes
+        ? headingFontDefault
+        : await askValidatedInput({
+            promptName: "headingFont",
+            message: "Heading font family",
+            initial: headingFontDefault,
+            validator: validateFontFamily,
+            normalise: function (value) {
+              return String(value).trim().toLowerCase();
+            },
+          });
+
+    const bodyFontDefault = (function () {
+      const existingBody = isPlainObject(existingConfig && existingConfig.fontFamily)
+        ? existingConfig.fontFamily.body
+        : existingConfig && existingConfig.fontFamily;
+      if (typeof existingBody !== "string") return "inter";
+      const candidate = existingBody.trim().toLowerCase();
+      return validateFontFamily(candidate).valid ? candidate : "inter";
+    })();
+
+    const bodyFont = initOptions.bodyFont
+      ? String(initOptions.bodyFont).trim().toLowerCase()
+      : initOptions.yes
+        ? bodyFontDefault
+        : await askValidatedInput({
+            promptName: "bodyFont",
+            message: "Body font family",
+            initial: bodyFontDefault,
+            validator: validateFontFamily,
+            normalise: function (value) {
+              return String(value).trim().toLowerCase();
+            },
+          });
 
     const selectedFontKeys = getSelectedFontKeys(headingFont, bodyFont);
     const selectedFontImportPaths = getFontImportPaths(selectedFontKeys);
@@ -1536,16 +1646,21 @@ async function init(options = {}) {
       }
     }
 
-    const baseFontSize = await new Select({
-      name: "baseFontSize",
-      message: "Base font size (sets html font-size, scales all rem values)",
-      choices: ["14px", "16px", "18px", "20px"],
-      initial: (function () {
-        const existing = existingConfig && existingConfig.baseFontSize;
-        const idx = ["14px", "16px", "18px", "20px"].indexOf(existing);
-        return idx >= 0 ? idx : 1;
-      })(),
-    }).run();
+    const baseFontSizeChoices = ["14px", "16px", "18px", "20px"];
+    const baseFontSizeDefault = baseFontSizeChoices.includes(
+      existingConfig && existingConfig.baseFontSize,
+    )
+      ? existingConfig.baseFontSize
+      : "16px";
+
+    const baseFontSize = initOptions.yes
+      ? baseFontSizeDefault
+      : await new Select({
+          name: "baseFontSize",
+          message: "Base font size (sets html font-size, scales all rem values)",
+          choices: baseFontSizeChoices,
+          initial: baseFontSizeChoices.indexOf(baseFontSizeDefault),
+        }).run();
 
     // =========================================================================
     // PROSE
@@ -1575,15 +1690,17 @@ async function init(options = {}) {
     // SPACING
     // =========================================================================
 
-    const baseUnit = await askValidatedInput({
-      promptName: "baseUnit",
-      message: "Base spacing unit in px (label/documentation only) e.g. 1rem or 10px",
-      initial: getBaseUnitInitial(existingConfig),
-      validator: validateSpacingValue,
-      normalise: function (value) {
-        return String(value).trim().toLowerCase();
-      },
-    });
+    const baseUnit = initOptions.yes
+      ? getBaseUnitInitial(existingConfig)
+      : await askValidatedInput({
+          promptName: "baseUnit",
+          message: "Base spacing unit in px (label/documentation only) e.g. 1rem or 10px",
+          initial: getBaseUnitInitial(existingConfig),
+          validator: validateSpacingValue,
+          normalise: function (value) {
+            return String(value).trim().toLowerCase();
+          },
+        });
 
     // =========================================================================
     // PURGE / OUTPUT
@@ -1591,20 +1708,74 @@ async function init(options = {}) {
 
     console.log(chalk.bold("\n" + chalk.magenta("→") + " Project files"));
 
+    const existingPurge = isPlainObject(existingConfig && existingConfig.purge)
+      ? existingConfig.purge
+      : {};
+    const initialSourceGlobs =
+      Array.isArray(existingPurge.sourceGlobs) && existingPurge.sourceGlobs.length > 0
+        ? existingPurge.sourceGlobs
+        : detectedProject.sourceGlobs;
+    const existingOutput = isPlainObject(existingConfig && existingConfig.output)
+      ? existingConfig.output
+      : {};
+    const initialOutputPath =
+      typeof existingOutput.css === "string" && existingOutput.css.trim()
+        ? existingOutput.css.trim()
+        : detectedProject.outputPath;
+
     console.log(
       chalk.gray(
         "  Detected " +
           detectedProject.name +
-          ". EmilyCSS will scan the recommended files automatically.",
+          ". EmilyCSS will scan these files for used classes:",
       ),
     );
 
-    detectedProject.sourceGlobs.forEach(function (glob) {
+    initialSourceGlobs.forEach(function (glob) {
       console.log(chalk.gray("  - " + glob));
     });
 
-    console.log(chalk.bold("\n" + chalk.magenta("→") + " CSS output"));
-    console.log(chalk.gray("  Output: " + detectedProject.outputPath));
+    if (initOptions.yes) {
+      detectedProject.sourceGlobs = initialSourceGlobs;
+      detectedProject.outputPath = initialOutputPath;
+    } else {
+      const globsInput = await askValidatedInput({
+        promptName: "sourceGlobs",
+        message: "Source globs to scan (comma-separated, enter to accept)",
+        initial: initialSourceGlobs.join(", "),
+        validator: function (value) {
+          if (typeof value !== "string" || !value.trim()) {
+            return { valid: false, reason: "at least one source glob is required" };
+          }
+          return { valid: true };
+        },
+      });
+      detectedProject.sourceGlobs = globsInput
+        .split(",")
+        .map(function (glob) {
+          return glob.trim();
+        })
+        .filter(Boolean);
+
+      console.log(chalk.bold("\n" + chalk.magenta("→") + " CSS output"));
+      detectedProject.outputPath = await askValidatedInput({
+        promptName: "outputPath",
+        message: "CSS output path (enter to accept)",
+        initial: initialOutputPath,
+        validator: function (value) {
+          if (typeof value !== "string" || !value.trim()) {
+            return { valid: false, reason: "output path is required" };
+          }
+          if (!value.trim().toLowerCase().endsWith(".css")) {
+            return { valid: false, reason: "output path must end in .css" };
+          }
+          return { valid: true };
+        },
+        normalise: function (value) {
+          return String(value).trim();
+        },
+      });
+    }
 
     // =========================================================================
     // BUILD
@@ -1636,6 +1807,15 @@ async function init(options = {}) {
     config.colours = colours;
     config.prose = mergeWithDefaults(DEFAULT_PROSE_CONFIG, config.prose);
     config.prose.enabled = proseEnabled;
+
+    config.output = isPlainObject(config.output) ? config.output : {};
+    config.output.css = detectedProject.outputPath;
+    if (typeof config.output.fullCss !== "string" || !config.output.fullCss.trim()) {
+      config.output.fullCss = detectedProject.outputPath;
+    }
+    if (isPlainObject(config.purge)) {
+      config.purge.sourceGlobs = detectedProject.sourceGlobs;
+    }
 
     const finalValidation = validateConfigShape(config);
     if (!finalValidation.valid) {
@@ -1675,6 +1855,55 @@ async function init(options = {}) {
           config.output && config.output.css ? config.output.css : detectedProject.outputPath,
         );
       }
+    }
+
+    const manifestOutputPath =
+      config.manifest === true
+        ? "dist/emily.manifest.json"
+        : isPlainObject(config.manifest) && config.manifest.enabled === true
+          ? config.manifest.output || "dist/emily.manifest.json"
+          : null;
+
+    const nextCommandsBlock =
+      "\n\nNext commands:\n" +
+      chalk.cyan("  npx emily-css build") +
+      chalk.gray("      generate CSS from your config\n") +
+      chalk.cyan("  npx emily-css watch") +
+      chalk.gray("      rebuild on file changes\n") +
+      chalk.cyan("  npx emily-css doctor") +
+      chalk.gray("     check config and contrast\n") +
+      chalk.cyan("  npx emily-css migrate") +
+      chalk.gray("    convert Tailwind-style classes if you have them") +
+      "\n\nDocs: " +
+      chalk.cyan("https://emilyui.com/docs");
+
+    if (initOptions.configOnly) {
+      console.log(
+        "\n" +
+          boxen(
+            chalk.green.bold("Config written (no CSS built)") +
+              "\n\nConfig:   " +
+              chalk.cyan("emily.config.json") +
+              "\nOutput:   " +
+              chalk.cyan(config.output.css) +
+              (manifestOutputPath
+                ? "\nManifest: " + chalk.cyan(manifestOutputPath)
+                : "") +
+              "\nProject:  " +
+              chalk.cyan(detectedProject.name) +
+              "\nScan:\n  " +
+              chalk.cyan(config.purge.sourceGlobs.join("\n  ")) +
+              nextCommandsBlock,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: "round",
+              borderColor: "magenta",
+            },
+          ),
+      );
+      process.exit(0);
+      return;
     }
 
     console.log("");
@@ -1754,6 +1983,9 @@ async function init(options = {}) {
                 chalk.cyan("emily.config.json") +
                 "\nOutput:   " +
                 chalk.cyan(config.output.css) +
+                (manifestOutputPath
+                  ? "\nManifest: " + chalk.cyan(manifestOutputPath)
+                  : "") +
                 "\nProject:  " +
                 chalk.cyan(detectedProject.name) +
                 "\nScan:\n  " +
@@ -1761,6 +1993,7 @@ async function init(options = {}) {
                 "\n\nNext: add this stylesheet to your project:" +
                 "\n" +
                 chalk.yellow("  " + detectedProject.linkHint) +
+                nextCommandsBlock +
                 fontInstallSummary +
                 fontRuntimeSummary +
                 (scriptsAdded

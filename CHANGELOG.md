@@ -4,15 +4,27 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
-## Unreleased
+## v2.2.0 — July 2026
+
+**Utility coverage batch, accessible input pattern classes, and non-interactive init**
 
 ### Added
 - Added `.duration-0`, `.m-auto`, and token-driven `outline-<colour>-<shade>` utilities.
 - Added scoped `first:` and `last:` structural variants for spacing and border utilities.
 - Added `.switch`, `.input-file`, `.range`, and `.inline-code` pattern classes.
+- Added `emily-css init --config-only` to write `emily.config.json` without building CSS.
+- Added non-interactive init flags: `--brand`, `--accent`, `--heading-font`, `--body-font` (validated, fail fast on bad values).
+- Added `emily-css init --help`.
+- `init --yes` is now fully non-interactive: all prompts fall back to flags, existing config values, or defaults.
+- Interactive init now lets you confirm or edit detected source globs and the CSS output path before the config is written.
+- Init summary now shows the manifest output path, next commands, docs URL, and a `migrate` hint.
 
 ### Fixed
 - Replaced the hardcoded read-only form background colour with the configured neutral token.
+- CLI help now points at https://emilyui.com/docs.
+
+### Tests
+- Suite at 404 passing, including chaos/abuse config cases.
 
 ---
 

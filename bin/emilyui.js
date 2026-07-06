@@ -12,7 +12,12 @@ const usageText = `
     emily-css init        Set up a new project
       --fresh             Ignore existing emily.config.json values
       --use-existing      Use existing emily.config.json values as defaults
-      --yes, -y           Auto-accept recommended init prompts where possible
+      --yes, -y           Non-interactive: accept detected/existing values
+      --config-only       Write emily.config.json without building CSS
+      --brand <hex>       Brand colour, e.g. --brand "#D92787"
+      --accent <hex>      Accent colour, e.g. --accent "#F59E0B"
+      --heading-font <f>  Heading font key, e.g. lexend
+      --body-font <f>     Body font key, e.g. inter
       --skip-font-install Skip optional @fontsource package install prompt
     emily-css build       Generate production CSS to the configured output path
       --profile           Print coarse build timing information
@@ -92,7 +97,12 @@ if (command === "init") {
     emily-css init        Set up a new project (interactive wizard)
       --fresh             Ignore existing emily.config.json values
       --use-existing      Use existing emily.config.json values as defaults
-      --yes, -y           Auto-accept recommended init prompts where possible
+      --yes, -y           Non-interactive: accept detected/existing values
+      --config-only       Write emily.config.json without building CSS
+      --brand <hex>       Brand colour, e.g. --brand "#D92787"
+      --accent <hex>      Accent colour, e.g. --accent "#F59E0B"
+      --heading-font <f>  Heading font key, e.g. lexend
+      --body-font <f>     Body font key, e.g. inter
       --skip-font-install Skip optional @fontsource package install prompt
     emily-css build       Generate production CSS to the configured output path
       --profile           Print coarse build timing information
@@ -124,7 +134,7 @@ if (command === "init") {
     npm run emily:version    Same as emily-css version
     npm run emily:help       Same as emily-css help
   
-  Docs: https://emilyui.dev
+  Docs: https://emilyui.com/docs
 `);
 } else {
   if (!command) {
