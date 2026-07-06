@@ -24,6 +24,7 @@ const {
   generateTypographyUtilities,
   generateSpacingUtilities,
   addStateVariants,
+  addStructuralVariants,
   addAriaDataVariants,
   addResponsiveVariants,
   generateFlexboxUtilities,
@@ -490,6 +491,12 @@ test('generateSpacingUtilities includes mx-auto', () => {
   assert.ok(css.includes('.mx-auto {'), 'Missing ".mx-auto {"');
 });
 
+test('generateSpacingUtilities includes m-auto', () => {
+  const spacing = generateSpacing(config.baseUnit, config.spacing.scale);
+  const css = generateSpacingUtilities(spacing);
+  assert.ok(css.includes('.m-auto { margin: auto; }'), 'Missing ".m-auto {"');
+});
+
 test('generateSpacingUtilities includes px- and py- variants', () => {
   const spacing = generateSpacing(config.baseUnit, config.spacing.scale);
   const css = generateSpacingUtilities(spacing);
@@ -553,6 +560,20 @@ test('addStateVariants generates disabled: prefix', () => {
     result.includes('.disabled\\:opacity-50:disabled {'),
     'Missing disabled variant for opacity-50'
   );
+});
+
+test('addStructuralVariants generates first: and last: for spacing and border utilities only', () => {
+  const base = [
+    '.border-0 { border-width: 0; }',
+    '.mt-4 { margin-top: 1rem; }',
+    '.text-brand-80 { color: var(--color-brand-80); }',
+    '',
+  ].join('\n');
+  const result = addStructuralVariants(base);
+
+  assert.ok(result.includes('.first\\:border-0:first-child {'), 'Missing first:border-0 variant');
+  assert.ok(result.includes('.last\\:mt-4:last-child {'), 'Missing last:mt-4 variant');
+  assert.ok(!result.includes('.first\\:text-brand-80:first-child {'), 'Structural variants should not be generated for colour utilities');
 });
 
 test('addStateVariants does not double-process existing state variants', () => {
@@ -2904,6 +2925,24 @@ test('generateManifest includes all expected base variants', () => {
   });
 });
 
+test('generateManifest includes structural variants only on spacing and border utilities', () => {
+  const manifest = generateManifest([
+    '.p-4 { padding: 1rem; }',
+    '.border-0 { border-width: 0; }',
+    '.text-brand-80 { color: var(--color-brand-80); }',
+  ].join('\n'));
+  const spacingEntry = manifest.utilities.find((utility) => utility.class === 'p-4');
+  const borderEntry = manifest.utilities.find((utility) => utility.class === 'border-0');
+  const textEntry = manifest.utilities.find((utility) => utility.class === 'text-brand-80');
+
+  assert.ok(spacingEntry.variants.includes('first'), 'Expected spacing utilities to include first variant');
+  assert.ok(spacingEntry.variants.includes('last'), 'Expected spacing utilities to include last variant');
+  assert.ok(borderEntry.variants.includes('first'), 'Expected border utilities to include first variant');
+  assert.ok(borderEntry.variants.includes('last'), 'Expected border utilities to include last variant');
+  assert.ok(!textEntry.variants.includes('first'), 'Colour utilities should not include first variant');
+  assert.ok(!textEntry.variants.includes('last'), 'Colour utilities should not include last variant');
+});
+
 test('generateManifest categorizes rounded, shadow, border, outline, and ring correctly', () => {
   const css = [
     '.rounded { border-radius: 0.25rem; }',
@@ -4083,6 +4122,20 @@ test('split collapses to one column on small screens', () => {
 
 section('Atom Classes');
 
+test('first batch utility additions are generated', () => {
+  const { transitionUtilities } = require('../src/generators/effects.js');
+  const { ringUtilities } = require('../src/generators/rings.js');
+  const { formUtilities } = require('../src/generators/forms.js');
+  const { codeUtilities } = require('../src/generators/code.js');
+
+  const colours = generateAllColours(config.colours);
+
+  assert.ok(transitionUtilities().includes('.duration-0 { transition-duration: 0ms; }'), 'Expected duration-0 utility');
+  assert.ok(ringUtilities(colours).includes('.outline-brand-80 { outline-color: var(--color-brand-80); }'), 'Expected outline-brand-80 utility');
+  assert.ok(formUtilities().includes('.read-only\\:bg-gray-100:read-only { background-color: var(--color-neutral-10); }'), 'Expected read-only bg utility to use neutral token');
+  assert.ok(codeUtilities().includes('.inline-code {'), 'Expected inline-code utility');
+});
+
 test('atom-level classes generated (buttons, feedback, media, layout)', () => {
   const { patternComponents } = require('../src/generators/patterns.js');
   const css = patternComponents({});
@@ -4093,6 +4146,7 @@ test('atom-level classes generated (buttons, feedback, media, layout)', () => {
     '.inline-error', '.inline-success', '.inline-warning', '.inline-info',
     '.avatar', '.avatar-sm', '.avatar-lg',
     '.divider', '.scroll-area',
+    '.switch', '.input-file', '.range',
   ].forEach(cls => {
     assert.ok(css.includes(`${cls} {`) || css.includes(`${cls},`), `Expected atom class ${cls}`);
   });

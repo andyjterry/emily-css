@@ -409,6 +409,7 @@ function generateSpacingUtilities(spacing) {
   });
 
   // Margin auto
+  css += `.m-auto { margin: auto; }\n`;
   css += `.mx-auto { margin-left: auto; margin-right: auto; }\n`;
   css += `.my-auto { margin-top: auto; margin-bottom: auto; }\n`;
 
@@ -1115,6 +1116,50 @@ function addStateVariants(css) {
   return variantCss;
 }
 
+function supportsStructuralVariant(classWithoutDot) {
+  return /^(?:-?(?:m|mx|my|mt|mr|mb|ml|ms|me)-|(?:p|px|py|pt|pr|pb|pl|ps|pe)-|border(?:-|$))/.test(classWithoutDot);
+}
+
+function addStructuralVariants(css) {
+  const states = [
+    { name: 'first', selector: ':first-child' },
+    { name: 'last', selector: ':last-child' },
+  ];
+
+  let variantCss = css;
+
+  states.forEach(state => {
+    let stateRules = '';
+    const lines = css.split('\n');
+
+    lines.forEach(line => {
+      if (line.startsWith('.') && line.includes('{')) {
+        const className = line.split('{')[0].trim();
+
+        if (
+          !className.startsWith(':root') &&
+          !className.includes('@') &&
+          !className.includes('::') &&
+          !className.includes(':')
+        ) {
+          const classWithoutDot = className.substring(1);
+          if (!supportsStructuralVariant(classWithoutDot)) return;
+
+          const stateSelector = `.${state.name}\\:${classWithoutDot}${state.selector}`;
+          const statefulRule = line.replace(className, stateSelector);
+          stateRules += statefulRule + '\n';
+        }
+      }
+    });
+
+    if (stateRules) {
+      variantCss += '\n/* Structural variant: ' + state.name + ' */\n' + stateRules;
+    }
+  });
+
+  return variantCss;
+}
+
 function escapeUtilityClassName(className) {
   return className.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
@@ -1194,6 +1239,7 @@ function buildFullFramework() {
   utilityCss += generateExtendedUtilities(config);
 
   utilityCss = addStateVariants(utilityCss);
+  utilityCss = addStructuralVariants(utilityCss);
   utilityCss = addAriaDataVariants(utilityCss);
   utilityCss = addDarkModeVariants(utilityCss);
   utilityCss = addResponsiveVariants(utilityCss, config);
@@ -1497,6 +1543,7 @@ module.exports = {
   generateFlexboxUtilities,
   generateGridUtilities,
   addStateVariants,
+  addStructuralVariants,
   addAriaDataVariants,
   addResponsiveVariants,
   generateExtendedUtilities,

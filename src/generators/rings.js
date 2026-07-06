@@ -18,6 +18,7 @@ function ringUtilities(colours) {
     Object.entries(shades).forEach(([shade]) => {
       css += `.ring-${colourName}-${shade} { --ring-color: var(--color-${colourName}-${shade}); }\n`;
       css += `.ring-offset-${colourName}-${shade} { --ring-offset-color: var(--color-${colourName}-${shade}); }\n`;
+      css += `.outline-${colourName}-${shade} { outline-color: var(--color-${colourName}-${shade}); }\n`;
     });
   });
 

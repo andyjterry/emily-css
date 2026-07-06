@@ -306,6 +306,10 @@ function getVariants(config) {
   return [...BASE_VARIANTS, ...breakpoints];
 }
 
+function supportsStructuralVariant(className) {
+  return /^(?:-?(?:m|mx|my|mt|mr|mb|ml|ms|me)-|(?:p|px|py|pt|pr|pb|pl|ps|pe)-|border(?:-|$))/.test(className);
+}
+
 function generateManifest(css, config = {}) {
   const manifest = {
     schemaVersion: '1',
@@ -336,6 +340,9 @@ function generateManifest(css, config = {}) {
 
     classSelectors.forEach((classSelector) => {
       const className = normalizeClassName(classSelector);
+      const utilityVariants = supportsStructuralVariant(className)
+        ? [...variants, 'first', 'last']
+        : variants;
 
       manifest.utilities.push({
         class: className,
@@ -344,7 +351,7 @@ function generateManifest(css, config = {}) {
         value: firstValue,
         token: getTokenFromDeclarations(declarations),
         declarations,
-        variants,
+        variants: utilityVariants,
         source: 'generated-css',
       });
     });

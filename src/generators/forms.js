@@ -15,7 +15,7 @@ function formUtilities() {
 .default\\:ring-0:default { box-shadow: 0 0 0 0px transparent; }
 .disabled\\:opacity-50:disabled { opacity: 0.5; }
 .enabled\\:opacity-100:enabled { opacity: 1; }
-.read-only\\:bg-gray-100:read-only { background-color: rgb(243, 244, 246); }
+.read-only\\:bg-gray-100:read-only { background-color: var(--color-neutral-10); }
 
 `;
 }

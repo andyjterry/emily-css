@@ -4,6 +4,18 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## Unreleased
+
+### Added
+- Added `.duration-0`, `.m-auto`, and token-driven `outline-<colour>-<shade>` utilities.
+- Added scoped `first:` and `last:` structural variants for spacing and border utilities.
+- Added `.switch`, `.input-file`, `.range`, and `.inline-code` pattern classes.
+
+### Fixed
+- Replaced the hardcoded read-only form background colour with the configured neutral token.
+
+---
+
 ## v2.1.0 — June 2026
 
 **Configurable Tailwind-compatible prose system**

@@ -21,6 +21,7 @@ function transitionUtilities() {
 .transition-opacity { transition-property: opacity; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
 .transition-shadow { transition-property: box-shadow; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
 .transition-transform { transition-property: transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.duration-0 { transition-duration: 0ms; }
 .duration-75 { transition-duration: 75ms; }
 .duration-100 { transition-duration: 100ms; }
 .duration-150 { transition-duration: 150ms; }

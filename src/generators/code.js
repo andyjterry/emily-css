@@ -2,6 +2,7 @@
 
 function codeUtilities() {
   return `/* Code — window chrome */
+.inline-code { display: inline-block; padding: 0.1em 0.35em; border: 1px solid var(--color-neutral-20); border-radius: var(--radius-sm, 4px); background-color: var(--color-neutral-10); color: var(--color-neutral-90); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.875em; line-height: 1.4; }
 .code-window { border-radius: 8px; overflow: hidden; border: 1px solid #3c3c3c; }
 .code-title-bar { background-color: #2d2d2d; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid #3c3c3c; }
 .code-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
