@@ -4,10 +4,13 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
-## Unreleased
+## v2.2.1 — July 2026
+
+**CTA band contrast fix and public package metadata**
 
 ### Fixed
 - `.cta-band p` now uses the dark text token instead of muted grey — muted text on the band's brand-10 tint fell below WCAG AA contrast on stronger brand scales.
+- npm package metadata now points to the public `andyjterry/emily-css` repository, issues, and README instead of the unavailable `emilyui/emily-css` URLs.
 
 ---
 
