@@ -1116,7 +1116,9 @@ ${formBaseCss}
   .cta-band p {
     margin: 0;
     max-width: 40rem;
-    color: var(--color-text-muted, var(--color-neutral-60));
+    /* The band sits on a brand-10 tint; muted text can miss AA on stronger
+       brand scales, so body copy stays near-heading dark here. */
+    color: var(--color-text, var(--color-neutral-90));
   }
 
   /* Asymmetric two-column content split — collapses on small screens */

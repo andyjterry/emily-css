@@ -4,6 +4,13 @@ All notable changes to `emily-css` are documented here.
 
 ---
 
+## Unreleased
+
+### Fixed
+- `.cta-band p` now uses the dark text token instead of muted grey — muted text on the band's brand-10 tint fell below WCAG AA contrast on stronger brand scales.
+
+---
+
 ## v2.2.0 — July 2026
 
 **Utility coverage batch, accessible input pattern classes, and non-interactive init**
