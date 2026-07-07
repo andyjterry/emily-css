@@ -68,10 +68,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/emilyui/emily-css.git"
+    "url": "git+https://github.com/andyjterry/emily-css.git"
   },
   "bugs": {
-    "url": "https://github.com/emilyui/emily-css/issues"
+    "url": "https://github.com/andyjterry/emily-css/issues"
   },
-  "homepage": "https://github.com/emilyui/emily-css#readme"
+  "homepage": "https://github.com/andyjterry/emily-css#readme"
 }
